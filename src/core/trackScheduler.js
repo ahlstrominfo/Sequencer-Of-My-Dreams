@@ -19,14 +19,16 @@ class TrackScheduler {
         this.noteSeriesCounter = new Array(track.settings.noteSeries.length).fill(1);
         this.pendingResync = false;
         this.pendingResyncBar = false;
+        this.pendingReyncTriggerPattern = false;
         this.updateTriggerPattern();
     }
 
     onTrackSettingsUpdate(newSettings, oldSettings) {
         let shouldResync = false;
         if ('triggerType' in newSettings || 'triggerSettings' in newSettings) {
-            this.updateTriggerPattern();
-            this.shouldResync = true;
+            // this.updateTriggerPattern();
+            this.pendingReyncTriggerPattern = true;
+            shouldResync = true;
         }
 
         if ('noteSeries' in newSettings) {
@@ -52,9 +54,33 @@ class TrackScheduler {
     }
 
     updateTriggerPattern() {
+        const oldPattern = this.triggerPattern;
+        const oldLength = oldPattern ? oldPattern.length : 0;
+        
+        // Create the new trigger pattern
         this.triggerPattern = triggerPatternFromSettings(this.track.settings);
+        
+        // Recalculate durations
         this.precalculateDurations();
-        this.resetTrackState();
+        
+        // Adjust the current step to the equivalent position in the new pattern
+        if (oldLength > 0) {
+            this.currentStep = this.currentStep % oldLength;
+            const oldPosition = this.currentStep / oldLength;
+            this.currentStep = Math.floor(oldPosition * this.triggerPattern.length);
+        }
+        
+        // Adjust global step if necessary (this might not always be needed)
+        // this.globalStep = Math.floor(this.globalStep / oldLength) * this.triggerPattern.length + this.currentStep;
+        
+        // Recalculate the next schedule time based on the current global step
+        this.recalculateNextScheduleTime();
+    }
+    
+    recalculateNextScheduleTime() {
+        const currentTime = this.sequencer.clock.getCurrentTime();
+        const stepDuration = this.getStepDuration();
+        this.nextScheduleTime = currentTime + (stepDuration * (this.currentStep + 1));
     }
 
     precalculateDurations() {
@@ -91,7 +117,11 @@ class TrackScheduler {
             this.pendingResync = true;
             return;
         }
-        
+        if (this.pendingReyncTriggerPattern) {
+            this.updateTriggerPattern();
+            this.pendingReyncTriggerPattern = false;
+        }
+
         // Calculate the current step based on the SongClock's position
         const stepsPerBeat = this.sequencer.settings.ppq / 24;
         const totalSteps = (bar * this.sequencer.settings.timeSignature[0] + beat) * stepsPerBeat + Math.floor(tick / 24);
