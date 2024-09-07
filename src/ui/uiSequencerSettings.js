@@ -74,6 +74,7 @@ class UISequencerSettings extends UIBase {
     }
 
     saveSequence() {
+        this.sequenceManager.saveSequence();
         console.log(`Sequence saved as: ${this.sequenceManager.getCurrentTrackName()}`);
         this.sequenceManager.saveToTmp();
     }
