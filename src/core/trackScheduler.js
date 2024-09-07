@@ -321,21 +321,40 @@ class TrackScheduler {
         setTimeout(() => this.activeNotes.delete(pitch), startTime + duration - currentTime);
     }
 
+    // getNextNote(noteIndex) {
+    //     const noteSettings = this.track.settings.noteSeries[noteIndex];
+    //     const { rootNote, numberOfNotes, inversion, pitchSpan } = noteSettings;
+    //     const currentScaleType = this.sequencer.getCurrentScale();
+
+    //     let chord = generateChord(rootNote, {
+    //         numberOfNotes,
+    //         inversion,
+    //         scaleType: currentScaleType
+    //     });
+
+    //     if (pitchSpan > 0) {
+    //         chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
+    //     }
+
+    //     return chord;
+    // }
+
     getNextNote(noteIndex) {
         const noteSettings = this.track.settings.noteSeries[noteIndex];
-        const { rootNote, numberOfNotes, inversion, pitchSpan } = noteSettings;
+        const { rootNote, numberOfNotes, inversion, pitchSpan, spread } = noteSettings;
         const currentScaleType = this.sequencer.getCurrentScale();
-
+    
         let chord = generateChord(rootNote, {
             numberOfNotes,
             inversion,
+            spread,
             scaleType: currentScaleType
         });
-
+    
         if (pitchSpan > 0) {
             chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
         }
-
+    
         return chord;
     }
 

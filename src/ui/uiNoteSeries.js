@@ -73,6 +73,17 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
+                    name: 'Spread',
+                    value: () => series.spread,
+                    handle: (delta) => {
+                        series.spread = series.spread + delta;
+                        this.updateTrackSettingsAndReload({
+                            noteSeries: track.settings.noteSeries
+                        });
+                    },
+                    padding: 5,
+                },
+                {
                     name: 'Prob',
                     value: () => series.probability !== undefined ? series.probability : 100,
                     handle: (delta, step) => {

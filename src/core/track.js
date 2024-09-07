@@ -16,6 +16,7 @@ class Track {
                 velocity: 100,
                 pitchSpan: 0,
                 velocitySpan: 0,
+                spread: 0,
                 probability: 100,
                 aValue: 1,
                 bValue: 1,
@@ -81,6 +82,7 @@ class Track {
                 aValue: Math.max(1, Math.min(8, noteSeries.aValue)),
                 bValue: Math.max(1, Math.min(8, noteSeries.bValue)),
                 arpMode: Math.max(0, Math.min(Object.keys(ARP_MODES).length - 1, noteSeries.arpMode)),
+                spread: Math.max(-9, Math.min(9, noteSeries.spread)),
                 playMultiplier: noteSeries.playMultiplier,
                 wonkyArp: noteSeries.wonkyArp,
             }));

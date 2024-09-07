@@ -106,13 +106,25 @@ const conformNoteToScale = (note, key, scaleNumber, semitones) => {
     return closestNote + (octave * 12);
 };
 
+function invertChord(arr, inv) {
+    if (inv > 0) {
+        for (let i = 0; i < inv; i++) {
+            arr.push(arr.shift() + 12);
+        }
+    } else if (inv < 0) {
+        for (let i = 0; i > inv; i--) {
+            arr.unshift(arr.pop() - 12);
+        }
+    }
+    return arr;
+};
 
 function generateChord(rootNote, options = {}) {
     const {
         numberOfNotes = 3,
         inversion = 0,
-        spread = 'close',
-        scaleType = 0  // Default to Major scale
+        spread = 0,
+        scaleType = 0
     } = options;
 
     const scale = scales[scaleType];
@@ -124,29 +136,34 @@ function generateChord(rootNote, options = {}) {
     let chord = chordIntervals.map(interval => rootNote + interval);
 
     // Apply inversion
-    const invertChord = (arr, inv) => {
-        if (inv > 0) {
-            for (let i = 0; i < inv; i++) {
-                arr.push(arr.shift() + 12);
-            }
-        } else if (inv < 0) {
-            for (let i = 0; i > inv; i--) {
-                arr.unshift(arr.pop() - 12);
-            }
-        }
-        return arr;
-    };
-
     chord = invertChord(chord, inversion);
 
     // Apply spread
-    if (spread === 'wide') {
-        for (let i = 1; i < chord.length; i++) {
-            chord[i] += 12 * i;
-        }
+    if (spread !== 0) {
+        chord = applySpread(chord, spread);
     }
 
     return chord;
+}
+
+function applySpread(chord, spread) {
+    const spreadAmount = Math.abs(spread) / 9;  // Normalize to 0-1
+    const direction = Math.sign(spread);
+
+    return chord.map((note, index) => {
+        const normalizedIndex = index / (chord.length - 1);
+        let spreadOffset;
+        
+        if (direction > 0) {
+            // Positive spread: emphasize higher notes
+            spreadOffset = normalizedIndex * 24 * spreadAmount;
+        } else {
+            // Negative spread: emphasize lower notes
+            spreadOffset = (1 - normalizedIndex) * 24 * spreadAmount;
+        }
+        
+        return Math.round(note + (spreadOffset * direction));
+    });
 }
 
 const adjectives = [

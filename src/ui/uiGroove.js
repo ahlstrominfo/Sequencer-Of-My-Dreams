@@ -19,7 +19,7 @@ class UIGroove extends UIBase {
                     value: () => grooveStep.timeOffset,
                     handle: (delta, step) => {
                         grooveStep.timeOffset = grooveStep.timeOffset + delta * step;
-                        track.updateSettings({
+                        this.updateTrackSettingsAndReload({
                             groove: track.settings.groove
                         });
                     }
@@ -29,7 +29,7 @@ class UIGroove extends UIBase {
                     value: () => grooveStep.velocityOffset,
                     handle: (delta, step) => {
                         grooveStep.velocityOffset = grooveStep.velocityOffset + delta * step;
-                        track.updateSettings({
+                        this.updateTrackSettingsAndReload({
                             groove: track.settings.groove
                         });
                     }
@@ -109,6 +109,12 @@ class UIGroove extends UIBase {
 
             }
         });        
+    }
+
+    updateTrackSettingsAndReload(trackSettings){
+        const track = this.sequencer.tracks[this.terminalUI.currentTrack];
+        track.updateSettings(trackSettings);
+        this.openView();
     }
 
     render() {
