@@ -39,7 +39,7 @@ class Sequencer {
     }
 
     setupClockCallbacks() {
-        this.clock.setOnClockTickCallback((tick) => {
+        this.clock.setOnClockTickCallback(() => {
             this.midi.sendClock();
         });
         this.updateProgressionIfNeeded(0); // to fix the first bar.
@@ -124,7 +124,7 @@ class Sequencer {
         const oldTimeSignature = this.settings.timeSignature;
 
         if ('progression' in newSettings) {
-            newSettings.progression.forEach((step, index) => {
+            newSettings.progression.forEach((step) => {
                 step.bars = Math.max(1, Math.min(16, step.bars));
                 step.scale = Math.max(0, Math.min(Object.keys(scaleNames).length, step.scale));
                 step.transposition = Math.max(-24, Math.min(24, step.transposition));
@@ -182,6 +182,7 @@ class Sequencer {
 
         this.midi.processEventQueue(currentTime);
 
+         
         setImmediate(() => this.scheduleLoop());
     }
 

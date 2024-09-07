@@ -1,6 +1,4 @@
 const UIBase = require("./uiBase");
-const SequenceManager = require("../core/sequenceManager");
-
 
 class UILoadSequence extends UIBase {
     constructor(terminalUI, sequencer) {
@@ -11,7 +9,7 @@ class UILoadSequence extends UIBase {
     openView() {
         const availableSequences = this.sequenceManager.getAvailableSequences();
         this.rows = [];
-        availableSequences.forEach((seq, index) => {
+        availableSequences.forEach((seq) => {
             this.rows.push({
                 name: seq.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace('.json', ''),
                 value: () => seq,
@@ -21,10 +19,10 @@ class UILoadSequence extends UIBase {
                     console.log(`Loaded sequence: ${this.sequenceManager.getCurrentTrackName()}`);
                 }
             });
-        })
+        });
     }
 
-    render () {
+    render() {
         console.log('Load Sequence');
         console.log('------------------');
         super.render();
@@ -32,7 +30,7 @@ class UILoadSequence extends UIBase {
     }
 
     handleEscape() {
-        this.terminalUI.setView('sequencerSettings')        
+        this.terminalUI.setView('sequencerSettings');        
     }
 }
 

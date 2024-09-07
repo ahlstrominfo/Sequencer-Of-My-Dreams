@@ -1,6 +1,5 @@
-const { TRIGGER_TYPES, InitTriggerPattern, BinaryTriggerPattern, EuclideanTriggerPattern, StepTriggerPattern, triggerPatternFromSettings } = require('../patterns/triggerPatterns');
-const { generateChord, PLAY_ORDER, ARP_MODES } = require('../utils/utils');
-const GrooveManager = require('./grooveManager');
+const { TRIGGER_TYPES } = require('../patterns/triggerPatterns');
+const { PLAY_ORDER, ARP_MODES } = require('../utils/utils');
 const TrackScheduler = require('./trackScheduler');
 
 class Track {

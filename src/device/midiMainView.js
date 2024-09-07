@@ -62,7 +62,7 @@ class MidiMainView extends MidiView {
 
     }
 
-    handleButtonRelease(note) {
+    handleButtonRelease() {
         this.currentLightsMode = 0;
     }
 
@@ -70,7 +70,7 @@ class MidiMainView extends MidiView {
         const currentTrackKnob = cc - 16 + (shiftMode !== 0 ? 8 : 0);
         const currentTrack = this.controller.sequencer.tracks[currentTrackKnob];
         const currentVolume = currentTrack.settings.volume;
-        const newVolume = currentVolume + (value >= 64 ? - (value-64) : value)
+        const newVolume = currentVolume + (value >= 64 ? - (value-64) : value);
 
         this.controller.sequencer.tracks[currentTrackKnob].updateSettings({ volume: newVolume });
 

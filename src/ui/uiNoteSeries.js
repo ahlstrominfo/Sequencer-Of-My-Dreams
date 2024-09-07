@@ -1,4 +1,3 @@
-// const UIBase = require("./uiBase");
 const UITableView = require("./uiTableView");
 const { findMultiplierPreset, ARP_MODES_NAMES } = require("../utils/utils");
 
@@ -35,7 +34,7 @@ class UINoteSeries extends UITableView {
                 {
                     name: 'Inv',
                     value: () => series.inversion,
-                    handle: (delta, step) => {
+                    handle: (delta) => {
                         series.inversion = series.inversion + delta;
                         this.updateTrackSettingsAndReload({
                             noteSeries: track.settings.noteSeries
@@ -102,7 +101,7 @@ class UINoteSeries extends UITableView {
                 {
                     name: 'Arp',
                     value: () => ARP_MODES_NAMES[series.arpMode],
-                    handle: (delta, step) => {
+                    handle: (delta) => {
                         series.arpMode = series.arpMode + delta;
                         this.updateTrackSettingsAndReload({ noteSeries: track.settings.noteSeries });
                     }
@@ -110,7 +109,7 @@ class UINoteSeries extends UITableView {
                 {
                     name: 'Play Mult',
                     value: () => series.playMultiplier,
-                    handle: (delta, step) => {
+                    handle: (delta) => {
                         series.playMultiplier = findMultiplierPreset(series.playMultiplier, delta);
                         this.updateTrackSettingsAndReload({ noteSeries: track.settings.noteSeries });
                     }

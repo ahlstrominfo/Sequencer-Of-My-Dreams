@@ -110,7 +110,7 @@ class MidiOutput {
     }
 
     close() {
-        this.trackButtonNotes.forEach((note, index) => {
+        this.trackButtonNotes.forEach((note) => {
             this._setButtonLightImmediate(note,  0);
         });
 

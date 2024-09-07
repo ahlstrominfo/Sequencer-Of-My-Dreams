@@ -38,7 +38,7 @@ class UIStepPattern extends UIBase {
                             track.updateSettings(settings);
                             this.openView();
                         }
-                    }
+                    };
                 })
             },
         ];

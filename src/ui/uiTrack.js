@@ -1,5 +1,5 @@
 const UIBase = require("./uiBase");
-const { PLAY_ORDER_NAMES, ARP_MODES, ARP_MODES_NAMES, findMultiplierPreset } = require('../utils/utils');
+const { PLAY_ORDER_NAMES, ARP_MODES_NAMES, findMultiplierPreset } = require('../utils/utils');
 const { EuclideanTriggerPattern, TRIGGER_TYPES, TRIGGER_TYPE_NAMES } = require('../patterns/triggerPatterns');
 
 class UITrack extends UIBase {
@@ -30,7 +30,7 @@ class UITrack extends UIBase {
                     {
                         name: 'Hits',
                         value: () => settings.triggerSettings.hits,
-                        handle: (delta, step) => {
+                        handle: (delta) => {
                             settings.triggerSettings.hits = Math.max(0, Math.min(settings.triggerSettings.length, settings.triggerSettings.hits + delta));
                             track.updateSettings({
                                 triggerSettings: settings.triggerSettings
@@ -40,7 +40,7 @@ class UITrack extends UIBase {
                     {
                         name: 'Shift',
                         value: () => settings.triggerSettings.shift,
-                        handle: (delta, step) => {
+                        handle: (delta) => {
                             settings.triggerSettings.shift = Math.max(0, Math.min(settings.triggerSettings.length - 1, settings.triggerSettings.shift + delta));
                             track.updateSettings({
                                 triggerSettings: settings.triggerSettings
@@ -70,7 +70,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'TriggerType',
             value: () => TRIGGER_TYPE_NAMES[settings.triggerType],
-            handle: (delta, step) => {
+            handle: (delta) => {
                 const oldTriggerType = settings.triggerType;
                 const newTriggerType = Math.max(0, Math.min(Object.entries(TRIGGER_TYPES).length - 1, settings.triggerType + delta));
                 track.updateSettings({
@@ -131,7 +131,7 @@ class UITrack extends UIBase {
                 if (settings.grooveName) { 
                     return settings.grooveName;
                 }
-                return `Nr Groove Steps: ${settings.groove.length}`
+                return `Nr Groove Steps: ${settings.groove.length}`;
             },
             enter: () => {
                 this.terminalUI.setView('groove');
@@ -145,7 +145,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Note Series',
             value: () => {
-                return `Nr Note Series: ${settings.noteSeries.length}`
+                return `Nr Note Series: ${settings.noteSeries.length}`;
             },
             enter: () => {
                 this.terminalUI.setView('noteSeries');
@@ -154,7 +154,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Conform Notes',
             value: () => settings.conformNotes ? 'Yes' : 'No',
-            handle: (delta, step) => {
+            handle: () => {
                 track.updateSettings({
                     conformNotes: !settings.conformNotes
                 });
@@ -168,7 +168,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Tie NoteSeries to Pattern',
             value: () => settings.tieNoteSeriestoPattern ? 'Yes' : 'No',
-            handle: (delta, step) => {
+            handle: () => {
                 track.updateSettings({
                     tieNoteSeriestoPattern: !settings.tieNoteSeriestoPattern
                 });
@@ -187,7 +187,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Play Order',
             value: () => PLAY_ORDER_NAMES[settings.playOrder],
-            handle: (delta, step) => {
+            handle: (delta) => {
                 track.updateSettings({
                     playOrder: settings.playOrder + delta
                 });
@@ -197,7 +197,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Arp Mode',
             value: () => ARP_MODES_NAMES[settings.arpMode],
-            handle: (delta, step) => {
+            handle: (delta) => {
                 track.updateSettings({
                     arpMode: settings.arpMode + delta
                 });
@@ -227,7 +227,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Speed Multiplier',
             value: () => settings.speedMultiplier,
-            handle: (delta, step) => {
+            handle: (delta) => {
                 track.updateSettings({
                     speedMultiplier: findMultiplierPreset(settings.speedMultiplier, delta)
                 });
@@ -236,7 +236,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Play Multiplier',
             value: () => settings.playMultiplier,
-            handle: (delta, step) => {
+            handle: (delta) => {
                 track.updateSettings({
                     playMultiplier: findMultiplierPreset(settings.playMultiplier, delta)
                 });
@@ -250,7 +250,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Use Max Duration',
             value: () => settings.useMaxDuration ? 'Yes' : 'No',
-            handle: (delta, step) => {
+            handle: () => {
                 track.updateSettings({
                     useMaxDuration: !settings.useMaxDuration
                 });
@@ -265,7 +265,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Max Duration Factor',
             value: () => settings.maxDurationFactor,
-            handle: (delta, step) => {
+            handle: (delta) => {
                 track.updateSettings({
                     maxDurationFactor: findMultiplierPreset(settings.maxDurationFactor, delta)
                 });
@@ -294,7 +294,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Channel',
             value: () => settings.channel,
-            handle: (delta, step) => {
+            handle: (delta) => {
                 track.updateSettings({
                     channel: settings.channel + delta
                 });
@@ -312,7 +312,7 @@ class UITrack extends UIBase {
         this.rows.push({
             name: 'Active',
             value: () => settings.isActive ? 'Yes' : 'No',
-            handle: (delta, step) => {
+            handle: () => {
                 track.updateSettings({
                     isActive: !settings.isActive
                 });

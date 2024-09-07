@@ -1,4 +1,5 @@
 const GrooveManager = require('./grooveManager');
+const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
 const { generateChord, PLAY_ORDER, ARP_MODES, getArpeggiatedNotes} = require('../utils/utils');
 
 // Constants
@@ -23,7 +24,7 @@ class TrackScheduler {
         this.updateTriggerPattern();
     }
 
-    onTrackSettingsUpdate(newSettings, oldSettings) {
+    onTrackSettingsUpdate(newSettings) {
         let shouldResync = false;
         if ('triggerType' in newSettings || 'triggerSettings' in newSettings) {
             // this.updateTriggerPattern();
@@ -208,7 +209,7 @@ class TrackScheduler {
     }
 
     scheduleChord(chord, time, duration, globalStep, noteSettings, noteIndex) {
-        const shouldPlay = this.checkNoteSeriesCounter(noteIndex)
+        const shouldPlay = this.checkNoteSeriesCounter(noteIndex);
 
         if (shouldPlay) {
             const { time: adjustedTime, velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
@@ -243,11 +244,11 @@ class TrackScheduler {
 
         if (wonkyArp || noteSettings.wonkyArp) {
             nrSteps = chordToArp.length * playMultiplier;
-            arpStepDuration = duration / nrSteps   
+            arpStepDuration = duration / nrSteps;   
         }
 
         for (let i = 0; i < nrSteps; i++) {
-            const shouldPlay = this.checkNoteSeriesCounter(noteIndex)
+            const shouldPlay = this.checkNoteSeriesCounter(noteIndex);
 
             if (shouldPlay && Math.random() * 100 < noteSettings.probability) {
                 const noteStartTime = time + (i * arpStepDuration);

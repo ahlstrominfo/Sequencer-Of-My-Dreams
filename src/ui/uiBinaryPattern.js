@@ -8,7 +8,6 @@ class uiBinaryPattern extends UIBase {
     openView() {
         this.rows = [];
         const track = this.sequencer.tracks[this.terminalUI.currentTrack];
-        const settings = track.settings;
         const triggerSettings = track.settings.triggerSettings;
 
         track.settings.triggerSettings.numbers.forEach((number, index) => {
@@ -26,7 +25,7 @@ class uiBinaryPattern extends UIBase {
                 },
                 {
                     value: () => {
-                        return number.toString(2).padStart(4, '0').split('').map(bit => bit === '1' ? '■' : '□').join('')
+                        return number.toString(2).padStart(4, '0').split('').map(bit => bit === '1' ? '■' : '□').join('');
                     },
                     selectable: false,
                 },
@@ -50,7 +49,7 @@ class uiBinaryPattern extends UIBase {
                 name: index + 1 + ': ',
                 layout: 1,
                 cols: cols,
-                rowRender: ({prefix, formattedValue, isSelected, isEditing, row}) => {
+                rowRender: ({formattedValue}) => {
                     return `${formattedValue !== undefined ? formattedValue : ''}`;
                 }
             });

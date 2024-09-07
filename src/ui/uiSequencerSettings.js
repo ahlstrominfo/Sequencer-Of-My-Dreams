@@ -18,7 +18,7 @@ class UISequencerSettings extends UIBase {
             { 
                 name: 'State', 
                 value: () => {
-                    return this.sequencer.isPlaying ? 'Playing' : 'Stopped' 
+                    return this.sequencer.isPlaying ? 'Playing' : 'Stopped'; 
                 }, 
                 enter: () => {
                     if (!this.sequencer.isPlaying) {
@@ -74,12 +74,11 @@ class UISequencerSettings extends UIBase {
     }
 
     saveSequence() {
-        const savedFileName = this.sequenceManager.saveSequence();
         console.log(`Sequence saved as: ${this.sequenceManager.getCurrentTrackName()}`);
         this.sequenceManager.saveToTmp();
     }
 
-    render () {
+    render() {
         const trackName = this.sequenceManager.getCurrentTrackName();
         console.log('Sequencer Settings ' + (trackName? ' : ' + trackName : ''));
         console.log('------------------');

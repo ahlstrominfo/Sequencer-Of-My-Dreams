@@ -1,6 +1,6 @@
 const MidiView = require('./midiView');
 const midiSettings = require('../../data/midiDeviceSettings.json');
-const { EuclideanTriggerPattern, TRIGGER_TYPES, TRIGGER_TYPE_NAMES } = require('../patterns/triggerPatterns');
+const { TRIGGER_TYPES } = require('../patterns/triggerPatterns');
 const { scaleNumber, findMultiplierPreset, findMultiplierIndex,  MULTIPLIER_PRESETS, ARP_MODES } = require('../utils/utils');
 
 class MidiTrackView extends MidiView {
@@ -22,7 +22,7 @@ class MidiTrackView extends MidiView {
         this.modifyEuclideanPattern = false;
     }
 
-    handleButtonPress(note, shiftMode) {
+    handleButtonPress(note) {
         const buttonIndex = midiSettings.trackButtonNotes.indexOf(note);
         const track = this.controller.sequencer.tracks[this.trackIndex];
 

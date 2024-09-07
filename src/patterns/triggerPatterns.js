@@ -17,7 +17,7 @@ class InitTriggerPattern {
         this.steps = steps;
     }
 
-    shouldTrigger(step) {
+    shouldTrigger() {
         return false;
     }
 
@@ -89,25 +89,22 @@ class StepTriggerPattern {
     }
 }
 
-triggerPatternFromSettings = (settings) => {
+const triggerPatternFromSettings = (settings) => {
     const { triggerType, triggerSettings, steps } = settings;
     switch (triggerType) {
         case TRIGGER_TYPES.BINARY:
             return BinaryTriggerPattern.fromNumbers(triggerSettings.numbers || []);
-            break;
         case TRIGGER_TYPES.EUCLIDEAN:
             return new EuclideanTriggerPattern(
                 triggerSettings.length || steps,
                 triggerSettings.hits || 4,
                 triggerSettings.shift || 0
             );
-            break;
         case TRIGGER_TYPES.STEP:
             return new StepTriggerPattern(triggerSettings.steps || []);
-            break;
     }
     return new InitTriggerPattern(steps);
-}
+};
 
 module.exports = { 
     TRIGGER_TYPES,

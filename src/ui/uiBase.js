@@ -8,7 +8,7 @@ class UIBase {
         this.rows = []; 
     }
 
-    openView(mode) {
+    openView() {
         // nothing here used in subclasses
     }
 
@@ -18,7 +18,7 @@ class UIBase {
         return value;
     };
 
-    renderRow(row, index, isSelected, isEditing) {
+    renderRow(row, _index, isSelected, isEditing) {
         let value = row.value !== undefined ? row.value : '';
         value = typeof value === 'function' ? value() : value;
         const prefix = isSelected ? '>' : ' ';
@@ -31,7 +31,7 @@ class UIBase {
         return `${prefix} ${row.name}${formattedValue !== undefined ? ': '+formattedValue : ''}`;
     }
 
-    renderColumn(col, index, isSelected, isEditing, row) {
+    renderColumn(col, _index, isSelected, isEditing, row) {
         const prefix = isSelected ? '>' : ' ';
         const value = typeof col.value === 'function' ? col.value() : col.value;
         const formattedValue = this.formatValue(value, isSelected, isEditing);
@@ -83,9 +83,9 @@ class UIBase {
             const isEditingRow = this.isEditingField && isSelectedRow;
 
             if (row.selectable === false) {
-                row.rowRender = ({prefix, formattedValue, isSelected, isEditing, row}) => {
+                row.rowRender = ({row}) => {
                     return `${row.name !== undefined ? row.name : ''}`;
-                }
+                };
             }
 
             const rowString = this.renderRow(row, rowIndex, isSelectedRow, isEditingRow);
@@ -149,7 +149,8 @@ class UIBase {
         this.editRow = 0;
     }
 
-    adjustField(delta, step = 1) {
+    // eslint-disable-next-line no-unused-vars
+    adjustField(_delta, _step = 1) {
     }
 
     handleLeftRight(delta) {
@@ -163,7 +164,7 @@ class UIBase {
                     newCol = ((newCol + delta) + row.cols.length) % row.cols.length;
                 } while (row.cols[newCol].selectable === false && newCol !== this.editCol);
             
-                this.editCol = newCol
+                this.editCol = newCol;
             }
         }
     }

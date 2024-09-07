@@ -1,7 +1,7 @@
 
 const MidiView = require('./midiView');
 const midiSettings = require('../../data/midiDeviceSettings.json');
-const { scaleNumber, findMultiplierPreset, findMultiplierIndex,  MULTIPLIER_PRESETS, ARP_MODES } = require('../utils/utils');
+const { scaleNumber } = require('../utils/utils');
 
 class MidiNoteSeriesView extends MidiView {
     activate(trackIndex) {
@@ -96,7 +96,7 @@ class MidiNoteSeriesView extends MidiView {
                 currentNoteSeries.aValue = this.knobValue(currentNoteSeries.aValue, value);
                 track.updateSettings({ noteSeries: trackSettings.noteSeries });
                 this.showNumber(currentNoteSeries.aValue);
-                break                
+                break;                
 
             case 15:
                 currentNoteSeries.bValue = this.knobValue(currentNoteSeries.bValue, value);

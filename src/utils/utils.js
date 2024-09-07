@@ -89,10 +89,6 @@ const scaleNames = {
     14: 'Diminished'
 };
 
-const transposeNote = (note, semitones) => {
-    return note + semitones;
-};
-
 const conformNoteToScale = (note, key, scaleNumber, semitones) => {
     if (scales[scaleNumber] === undefined) {
         throw new Error('Scale not recognized');
@@ -108,7 +104,7 @@ const conformNoteToScale = (note, key, scaleNumber, semitones) => {
     // Adjust the octave
     const octave = Math.floor((note + semitones) / 12);
     return closestNote + (octave * 12);
-}
+};
 
 
 function generateChord(rootNote, options = {}) {
@@ -237,12 +233,14 @@ function getArpeggiatedNotes(chord, arpMode) {
             if (notes.length % 2 !== 0) result.pop(); // Remove last duplicate for odd number of notes
             break;
         case ARP_MODES.INSIDE_OUT: // 11. Inside-Out
-            const mid = Math.floor(notes.length / 2);
-            for (let i = 0; i < Math.ceil(notes.length / 2); i++) {
-                result.push(notes[mid - i] || notes[mid + i], notes[mid + i + 1] || notes[mid - i - 1]);
+            {
+                const mid = Math.floor(notes.length / 2);
+                for (let i = 0; i < Math.ceil(notes.length / 2); i++) {
+                    result.push(notes[mid - i] || notes[mid + i], notes[mid + i + 1] || notes[mid - i - 1]);
+                }
+                if (notes.length % 2 !== 0) result.pop(); // Remove last duplicate for odd number of notes
+                break;
             }
-            if (notes.length % 2 !== 0) result.pop(); // Remove last duplicate for odd number of notes
-            break;
         case ARP_MODES.CONVERGE: // 12. Converge
             for (let i = 0; i < Math.ceil(notes.length / 2); i++) {
                 result.push(notes[i], notes[notes.length - 1 - i]);
@@ -250,13 +248,15 @@ function getArpeggiatedNotes(chord, arpMode) {
             if (notes.length % 2 !== 0) result.pop(); // Remove last duplicate for odd number of notes
             break;
         case ARP_MODES.DIVERGE: // 13. Diverge
-            const midPoint = Math.floor(notes.length / 2);
-            result = [notes[midPoint]];
-            for (let i = 1; i <= midPoint; i++) {
-                if (midPoint + i < notes.length) result.push(notes[midPoint + i]);
-                if (midPoint - i >= 0) result.push(notes[midPoint - i]);
+            { 
+                const midPoint = Math.floor(notes.length / 2);
+                result = [notes[midPoint]];
+                for (let i = 1; i <= midPoint; i++) {
+                    if (midPoint + i < notes.length) result.push(notes[midPoint + i]);
+                    if (midPoint - i >= 0) result.push(notes[midPoint - i]);
+                }
+                break; 
             }
-            break;
         case ARP_MODES.THUMB: // 14. Thumb (Pedal)
             result = [notes[0]];
             for (let i = 1; i < notes.length; i++) {
@@ -307,7 +307,7 @@ function findMultiplierPreset(value, delta) {
     const currentIndex = findMultiplierIndex(value);
     let newIndex = currentIndex + delta;
     newIndex = Math.max(0, Math.min(newIndex, MULTIPLIER_PRESETS.length - 1));
-    return MULTIPLIER_PRESETS[newIndex]
+    return MULTIPLIER_PRESETS[newIndex];
 }
 
 module.exports = {

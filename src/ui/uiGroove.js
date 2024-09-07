@@ -49,7 +49,7 @@ class UIGroove extends UIBase {
                 name: index + 1 + ': ',
                 layout: 1,
                 cols: cols,
-                rowRender: ({prefix, formattedValue, isSelected, isEditing, row}) => {
+                rowRender: ({formattedValue}) => {
                     return `${formattedValue !== undefined ? formattedValue : ''}`;
                 }
             });
@@ -90,7 +90,7 @@ class UIGroove extends UIBase {
             enter: () => {
                 if (this.isEditingField) {
                     const groove = [];
-                    musicalGrooves[this.selectedGroove].groove.forEach((grooveStep, index) => {
+                    musicalGrooves[this.selectedGroove].groove.forEach((grooveStep) => {
                         groove.push({
                             timeOffset: grooveStep[0],
                             velocityOffset: grooveStep[1],
@@ -108,7 +108,7 @@ class UIGroove extends UIBase {
                 this.isEditingField = !this.isEditingField;
 
             }
-        })        
+        });        
     }
 
     render() {

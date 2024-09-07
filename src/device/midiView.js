@@ -8,6 +8,7 @@ class MidiView {
         this.showNumberDelayTimer = null;
     }
 
+    // eslint-disable-next-line no-unused-vars
     activate(...args) {
         // Override in subclasses
     }
@@ -16,14 +17,17 @@ class MidiView {
         // Override in subclasses
     }
 
+    // eslint-disable-next-line no-unused-vars
     handleButtonPress(note, shiftMode) {
         // Override in subclasses
     }
 
+    // eslint-disable-next-line no-unused-vars
     handleButtonRelease(note) {
         // Override in subclasses
     }
 
+    // eslint-disable-next-line no-unused-vars
     handleKnobTurn(cc, value, shiftMode) {
         // Override in subclasses
     }
@@ -53,7 +57,7 @@ class MidiView {
         return newValue;
     }
 
-    showNumber(number, duration = 5000) {
+    showNumber(number) {
         // Clear any existing timers
         if (this.showNumberTimeout) {
             clearTimeout(this.showNumberTimeout);

@@ -25,11 +25,4 @@ if (midiSettings.enabled) {
     midiController.start();
 }
 
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-    ui.exit();
-    sequencer.gracefulShutdown();
-    process.exit(0);
-});
-
 console.log('Sequencer is booting. Press Ctrl+C to stop.');

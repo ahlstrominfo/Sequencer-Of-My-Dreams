@@ -57,7 +57,7 @@ class TerminalUI {
         console.log('Sequencer Of My Dreams > > > >\n');
         this.currentView.render();
         if (this.useLogRecording) {
-            console.log(this.logger.logs.map(({message, timestamp}) => message).join('\n'));
+            console.log(this.logger.logs.map(({message}) => message).join('\n'));
         }
     }
 
@@ -68,7 +68,7 @@ class TerminalUI {
 
 
     registerMidiController(midiController) {
-        this.midiController = midiController
+        this.midiController = midiController;
         this.midiController.registerTerminalUI(this);
     }
 

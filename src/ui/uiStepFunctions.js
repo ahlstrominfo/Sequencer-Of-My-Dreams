@@ -8,15 +8,14 @@ class UIStepFunctions extends uiBase {
     openView() {
         this.rows = [];
         const track = this.sequencer.tracks[this.terminalUI.currentTrack];
-        const settings = track.settings;
         const stepFunctions = track.settings.stepFunctions;
 
-        this.rows = Object.keys(stepFunctions).map((key, index) => {
+        this.rows = Object.keys(stepFunctions).map((key) => {
             return {
                 name: key.padEnd(10),
                 layout: 1,
                 colsLayout: 0,
-                cols: stepFunctions[key].map((stepFunction, index) => {
+                cols: stepFunctions[key].map((_stepFunction, index) => {
                     return {
                         value: () => {
                             const fun = track.settings.stepFunctions[key][index];
@@ -31,7 +30,7 @@ class UIStepFunctions extends uiBase {
                                 stepFunctions: track.settings.stepFunctions
                             });
                         }
-                    }
+                    };
                 }),
             };
         });

@@ -34,11 +34,11 @@ class UIMain extends UIBase {
         return characterMap[clampedNumber];
       }
 
-    rowRender({prefix, formattedValue, isSelected, isEditing, row}) {
+    rowRender({formattedValue}) {
         return `${formattedValue !== undefined ? formattedValue : ''}`;
     }
 
-    colRender({prefix, value, formattedValue, isSelected, isEditing, row}) {
+    colRender({value, isSelected}) {
         if (isSelected) {
             return `[${value !== undefined ? value : ''}]`;
         }
@@ -62,7 +62,7 @@ class UIMain extends UIBase {
                     this.terminalUI.currentTrack = index;
                     this.terminalUI.setView('track');
                 }
-            }
+            };
         });
 
         labelCols.push({
@@ -84,7 +84,7 @@ class UIMain extends UIBase {
         });
 
         this.rows.push({
-            cols: this.sequencer.tracks.map((track, index) => {
+            cols: this.sequencer.tracks.map((track) => {
                 return {
                     value: () => {
                         return track.trackScheduler.getActiveNotes().length > 0 ? '■' : '□';
@@ -92,7 +92,7 @@ class UIMain extends UIBase {
                     enter: () => {
                         track.updateSettings({ isActive: !track.settings.isActive });
                     }
-                }
+                };
             }),
             layout: 1,
             colsLayout: 0,
@@ -102,7 +102,7 @@ class UIMain extends UIBase {
         });   
 
 
-        const activeCols = this.sequencer.tracks.map((track, index) => {
+        const activeCols = this.sequencer.tracks.map((track) => {
             return {
                 value: () => {
                     return track.settings.isActive ? '■' : '□';
@@ -110,7 +110,7 @@ class UIMain extends UIBase {
                 enter: () => {
                     track.updateSettings({ isActive: !track.settings.isActive });
                 }
-            }
+            };
         });
 
         activeCols.push({
@@ -124,7 +124,7 @@ class UIMain extends UIBase {
                 }
                 
             }
-        })
+        });
 
         this.rows.push({
             cols: activeCols,
@@ -134,18 +134,18 @@ class UIMain extends UIBase {
             colRender: this.colRender
         });   
         
-        const volumeCols = this.sequencer.tracks.map((track, index) => {
+        const volumeCols = this.sequencer.tracks.map((track) => {
             return {
                 value: () => {
                     return this.getBoxDrawingCharacter(track.settings.volume);
                 },
-                handle: (delta, step) => {                        
+                handle: (delta) => {                        
                     let newVolume = Math.round(track.settings.volume / 10) * 10;
                     newVolume = newVolume + (delta * 10);
                     track.updateSettings({ volume: newVolume });
                 }
-            }
-        })
+            };
+        });
 
         volumeCols.push({
             value: () => {
@@ -158,7 +158,7 @@ class UIMain extends UIBase {
                     this.sequencer.start();
                 }
             }
-        })
+        });
 
         this.rows.push({
             cols: volumeCols,
@@ -176,7 +176,7 @@ class UIMain extends UIBase {
                 enter: () => {
                     this.sequencer.updateActiveState(index);
                 },
-            }
+            };
         });
         this.rows.push({
             cols: activeStateRows,
@@ -184,7 +184,7 @@ class UIMain extends UIBase {
             colsLayout: 0,
             rowRender: this.rowRender,
             colRender: this.colRender,            
-        })
+        });
     }
 }
 

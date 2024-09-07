@@ -16,7 +16,7 @@ class MidiSequencerSettingsView extends MidiView {
         this.midiButtons = midiSettings.trackButtonNotes;
     }
 
-    handleButtonPress(note, shiftMode) {
+    handleButtonPress(note) {
         const buttonIndex = midiSettings.trackButtonNotes.indexOf(note);
 
         switch (buttonIndex) {
@@ -37,12 +37,12 @@ class MidiSequencerSettingsView extends MidiView {
 
     handleKnobTurn(cc, value, shiftMode) {
         const currentKnobValue = cc - 16 + (shiftMode !== 0 ? 8 : 0);
+        const currentBPM = this.controller.sequencer.settings.bpm;
+        const newBPM = Math.round(this.knobValue(currentBPM, value));
 
         switch (currentKnobValue) {
             case 0:
                 // BPM control
-                const currentBPM = this.controller.sequencer.settings.bpm;
-                const newBPM = Math.round(this.knobValue(currentBPM, value));
                 this.controller.sequencer.updateSettings({ bpm: Math.min(300, Math.max(30, newBPM)) });
                 this.showNumber(this.controller.sequencer.settings.bpm);
                 break;

@@ -23,7 +23,7 @@ class UIProgression extends UIBase {
                 {
                     name: 'Scale',
                     value: () => scaleNames[chord.scale],
-                    handle: (delta, step) => {
+                    handle: (delta) => {
                         chord.scale = chord.scale + delta;
                         this.sequencer.updateSettings({ progression });
                     }
@@ -92,7 +92,7 @@ class UIProgression extends UIBase {
         if (this.isEditingField) {
             this.isEditingField = false;
         } else {
-            this.terminalUI.setView('sequencerSettings')
+            this.terminalUI.setView('sequencerSettings');
         }
     }
 }

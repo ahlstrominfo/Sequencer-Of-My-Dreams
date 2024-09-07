@@ -12,7 +12,7 @@ class MidiStepPattern extends MidiView {
         this.midiButtons = midiSettings.trackButtonNotes;
     }
 
-    handleButtonPress(note, shiftMode) {
+    handleButtonPress(note) {
         const buttonIndex = midiSettings.trackButtonNotes.indexOf(note);
         const track = this.controller.sequencer.tracks[this.trackIndex];
         const triggerSettings = track.settings.triggerSettings;
@@ -35,7 +35,6 @@ class MidiStepPattern extends MidiView {
 
     updateLights() {
         const track = this.controller.sequencer.tracks[this.trackIndex];
-        const trackSettings = track.settings;
         const triggerSettings = track.settings.triggerSettings;
         const midiOutput = this.controller.midiOutput;
 
