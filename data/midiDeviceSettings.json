@@ -1,0 +1,12 @@
+{
+"enabled": false,
+    "input":"X-TOUCH MINI",
+    "output":"X-TOUCH MINI",
+    "trackButtonNotes": [89, 90, 40, 41, 42, 43, 44, 45, 87, 88, 91, 92, 86, 93, 94, 95],
+    "shiftButtonNote": 85,
+    "playButtonNote": 84,
+    "encoderCCs": {
+      "start": 48,
+      "count": 8
+    }
+}
