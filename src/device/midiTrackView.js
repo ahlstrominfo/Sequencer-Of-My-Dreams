@@ -1,7 +1,8 @@
 const MidiView = require('./midiView');
 const midiSettings = require('../../data/midiDeviceSettings.json');
 const { TRIGGER_TYPES } = require('../patterns/triggerPatterns');
-const { scaleNumber, findMultiplierPreset, findMultiplierIndex,  MULTIPLIER_PRESETS, ARP_MODES } = require('../utils/utils');
+const { scaleNumber, findMultiplierPreset, findMultiplierIndex,  MULTIPLIER_PRESETS } = require('../utils/utils');
+const { ARP_MODES } = require('../utils/arps');
 
 class MidiTrackView extends MidiView {
     constructor(controller) {

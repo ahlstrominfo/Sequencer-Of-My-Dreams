@@ -1,6 +1,7 @@
 const GrooveManager = require('./grooveManager');
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
-const { generateChord, PLAY_ORDER, ARP_MODES, getArpeggiatedNotes} = require('../utils/utils');
+const { generateChord, PLAY_ORDER } = require('../utils/utils');
+const { ARP_MODES, getArpeggiatedNotes} = require('../utils/arps');
 
 // Constants
 const MIDI_MAX_VELOCITY = 127;

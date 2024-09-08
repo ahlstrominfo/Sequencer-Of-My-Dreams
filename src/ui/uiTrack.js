@@ -1,5 +1,6 @@
 const UIBase = require("./uiBase");
-const { PLAY_ORDER_NAMES, ARP_MODES_NAMES, findMultiplierPreset } = require('../utils/utils');
+const { PLAY_ORDER_NAMES, findMultiplierPreset } = require('../utils/utils');
+const { ARP_MODES_NAMES } = require('../utils/arps');
 const { EuclideanTriggerPattern, TRIGGER_TYPES, TRIGGER_TYPE_NAMES } = require('../patterns/triggerPatterns');
 
 class UITrack extends UIBase {

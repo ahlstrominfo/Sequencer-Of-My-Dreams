@@ -1,5 +1,6 @@
 const UITableView = require("./uiTableView");
-const { findMultiplierPreset, ARP_MODES_NAMES } = require("../utils/utils");
+const { findMultiplierPreset } = require("../utils/utils");
+const { ARP_MODES_NAMES } = require("../utils/arps");
 
 class UINoteSeries extends UITableView {
     constructor(terminalUI, sequencer) {

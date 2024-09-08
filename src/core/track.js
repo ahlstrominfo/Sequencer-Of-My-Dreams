@@ -1,5 +1,6 @@
 const { TRIGGER_TYPES } = require('../patterns/triggerPatterns');
-const { PLAY_ORDER, ARP_MODES } = require('../utils/utils');
+const { PLAY_ORDER } = require('../utils/utils');
+const { ARP_MODES } = require('../utils/arps');
 const TrackScheduler = require('./trackScheduler');
 
 class Track {
