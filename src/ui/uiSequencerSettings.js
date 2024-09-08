@@ -55,6 +55,12 @@ class UISequencerSettings extends UIBase {
                     this.saveSequence();
                 }
             },
+            { name: 'Save Sequence (as new)', 
+                value: 'Save',
+                enter: () => {
+                    this.saveSequence(true);
+                }
+            },            
             { name: 'Load Sequence', 
                 value: 'Load',
                 enter: () => {
@@ -73,8 +79,8 @@ class UISequencerSettings extends UIBase {
         ];
     }
 
-    saveSequence() {
-        this.sequenceManager.saveSequence();
+    saveSequence(asNew = false) {
+        this.sequenceManager.saveSequence(asNew);
         console.log(`Sequence saved as: ${this.sequenceManager.getCurrentTrackName()}`);
         this.sequenceManager.saveToTmp();
     }
