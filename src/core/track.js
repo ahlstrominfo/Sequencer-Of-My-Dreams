@@ -138,6 +138,7 @@ class Track {
         // Additional logic after updating settings
         this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
         this.sequencer.sequenceManager.saveToTmp();
+        this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
     }
 }
 

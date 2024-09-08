@@ -42,6 +42,10 @@ class TerminalUI {
                 this.logger.clear();
             }
         }, 10000);
+
+        this.sequencer.registerListener('trackSettingsUpdated', () => {
+            this.currentView.openView();
+        });
     }
 
     setView(viewName, ...args) {

@@ -36,6 +36,8 @@ class Sequencer {
         this.cleanSequencer();
 
         this.setupClockCallbacks();
+
+        this.listeners = {};
     }
 
     setupClockCallbacks() {
@@ -264,6 +266,19 @@ class Sequencer {
         this.tracks.forEach((track, i) => {
             track.updateSettings({ isActive: this.settings.activeStates[index][i] });
         });
+    }
+
+    registerListener(event, callback) {
+        if (!this.listeners[event]) {
+            this.listeners[event] = [];
+        }
+        this.listeners[event].push(callback);
+    }
+
+    notifyListeners(event, data) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(callback => callback(data));
+        }
     }
 }
 
