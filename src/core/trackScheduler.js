@@ -281,22 +281,13 @@ class TrackScheduler {
     }
 
     advanceNoteSeriesCounter(noteIndex) {
-        if (noteIndex < 0 || noteIndex >= this.noteSeriesCounter.length) return;
-        
         const noteSettings = this.track.settings.noteSeries[noteIndex];
-        if (!noteSettings) return;
-        
         this.noteSeriesCounter[noteIndex] = (this.noteSeriesCounter[noteIndex] % noteSettings.bValue) + 1;
     }
 
     checkNoteSeriesCounter(noteIndex) {
-        if (noteIndex < 0 || noteIndex >= this.noteSeriesCounter.length) return false;
-        
         const noteSettings = this.track.settings.noteSeries[noteIndex];
-        if (!noteSettings) return false;
-        
-        return this.noteSeriesCounter[noteIndex] === noteSettings.aValue || 
-               (noteSettings.aValue === noteSettings.bValue && this.noteSeriesCounter[noteIndex] === 1);
+        return this.noteSeriesCounter[noteIndex] === noteSettings.aValue;
     }
 
     queueNoteEvents(pitch, startTime, duration, channel, velocity) {
