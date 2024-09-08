@@ -42,7 +42,14 @@ class MidiControllerUI {
             // // Add more views as needed
         };
 
-        this.connectMidiController();
+        // this.connectMidiController();
+        try {
+            this.connectMidiController();
+        } catch (error) {
+            console.error("No MIDI device available:", error.message);
+            throw new Error("MIDI device not available");
+        }
+
         this.setupInputEvents();
         this.setView('main');
         this.currentViewName = 'main';
@@ -53,13 +60,23 @@ class MidiControllerUI {
     connectMidiController() {
         const inputs = easymidi.getInputs();
         const outputs = easymidi.getOutputs();
-
-        if (midiSettings.input === undefined || midiSettings.output === undefined) {
+    
+        if (inputs.length === 0 || outputs.length === 0) {
+            throw new Error("No MIDI input or output devices found");
+        }
+    
+        if (!midiSettings.input || !midiSettings.output) {
             console.log('Available MIDI Input Ports:', inputs);
             console.log('Available MIDI Output Ports:', outputs);
-            process.exit(0);   
+            throw new Error("MIDI input or output not specified in settings");
         }
-
+    
+        if (!inputs.includes(midiSettings.input) || !outputs.includes(midiSettings.output)) {
+            console.log('Available MIDI Input Ports:', inputs);
+            console.log('Available MIDI Output Ports:', outputs);
+            throw new Error("Specified MIDI input or output not found");
+        }
+    
         this.input = new easymidi.Input(midiSettings.input);
         this.midiOutput = new MidiOutput(midiSettings.output);
     }
