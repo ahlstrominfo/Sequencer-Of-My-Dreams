@@ -54,6 +54,19 @@ class MidiCommunicator {
         }
     }
 
+    stopAllNotesForTrack(trackId) {
+        if (this.activeNotes.has(trackId)) {
+          for (const note of this.activeNotes.get(trackId)) {
+            this.output.send('noteoff', {
+              channel: trackId,
+              note: note,
+              velocity: 0
+            });
+          }
+          this.activeNotes.get(trackId).clear();
+        }
+    }
+
     sendSongPositionPointer() {
         const midiBeats = this.sequencer.clock.getMidiBeats();
         if (midiBeats !== this.lastSentPosition) {

@@ -123,6 +123,13 @@ class Track {
             newSettings.resyncInterval = Math.max(0, Math.min(100, newSettings.resyncInterval));
         }
 
+        if ('isActive' in newSettings) {
+            if (newSettings.isActive === false && this.settings.isActive === true) {
+              // Track is being deactivated
+              this.sequencer.midi.stopAllNotesForTrack(this.trackId);
+            }
+          }
+
         // Update the settings
         Object.assign(this.settings, newSettings);
 
