@@ -20,10 +20,15 @@ class MidiControllerUI {
         this.shiftMode = 0; // 0: none, 1: short, 2: long
         this.shiftLongThreshold = 1000; // 1 second for long shift
         this.shiftTimer = null;
+
+        this.shiftPressCount = 0;
+        this.shiftPressTimer = null;
+        this.tripleShiftThreshold = 500; // 500ms for triple press detection
         
         this.lastShiftPressTime = 0;
         this.doublePressThreshold = 300; // 300ms for double press detection
 
+        
         this.currentView = null;
         this.previousView = null;
         this.views = {
@@ -40,6 +45,9 @@ class MidiControllerUI {
         this.connectMidiController();
         this.setupInputEvents();
         this.setView('main');
+        this.currentViewName = 'main';
+        this.viewHistory = [];
+        this.goingBack = false;
     }
 
     connectMidiController() {
@@ -73,12 +81,42 @@ class MidiControllerUI {
     }
 
     setView(viewName, ...args) {
-        if (this.currentView) {
+        if (this.currentView && !this.goingBack) {
             this.currentView.deactivate();
+            this.viewHistory.push({ 
+                name: this.currentViewName, 
+                args: this.currentViewArgs
+            });
         }
+        this.currentViewName = viewName;
         this.currentView = this.views[viewName];
+        this.currentViewArgs = args;
         this.currentView.activate(...args);
         this.updateLights();
+
+        if (this.terminalUI) {
+            this.terminalUI.setView(viewName, ...args);
+        }
+
+        if (viewName === 'main') {
+            this.viewHistory = []; // Clear history when reaching main view
+        }
+    }
+
+    goBackOneLevel() {
+        try {
+            if (this.viewHistory.length === 0 || this.currentView === this.views.main) {
+                return; // Already at main view or no history, do nothing
+            }
+            const previousView = this.viewHistory.pop();
+            const viewName = previousView.name;
+            this.goingBack = true;
+            this.setView(viewName, ...previousView.args);
+            this.goingBack = false;
+        } catch (error) {
+            console.log(error);
+        }
+
     }
 
     handleNoteOn(msg) {
@@ -112,11 +150,19 @@ class MidiControllerUI {
 
     handleShiftPress() {
         const currentTime = Date.now();
-        if (currentTime - this.lastShiftPressTime < this.doublePressThreshold) {
-            this.handleDoubleShiftPress();
+        this.shiftPressCount++;
+
+        if (this.shiftPressCount === 1) {
+            this.shiftPressTimer = setTimeout(() => {
+                this.shiftPressCount = 0;
+            }, this.tripleShiftThreshold);
+        }
+
+        if (this.shiftPressCount === 3) {
+            clearTimeout(this.shiftPressTimer);
+            this.handleTripleShiftPress();
             return;
         }
-        this.lastShiftPressTime = currentTime;
 
         this.shiftPressed = true;
         this.shiftMode = 1; // Start in short shift mode
@@ -130,6 +176,8 @@ class MidiControllerUI {
                 this.midiOutput.setShiftButtonLight(2);
             }
         }, this.shiftLongThreshold);
+
+        this.lastShiftPressTime = currentTime;
     }
 
     handleShiftRelease() {
@@ -138,16 +186,28 @@ class MidiControllerUI {
         this.shiftMode = 0;
         this.currentView.handleButtonPress(null, this.shiftMode);
         this.midiOutput.setShiftButtonLight(0);
+
+        if (this.shiftPressCount == 2) {
+            this.goBackOneLevel();
+        }
     }
 
-    handleDoubleShiftPress() {
-        clearTimeout(this.shiftTimer);
+    // handleDoubleShiftPress() {
+    //     clearTimeout(this.shiftTimer);
+    //     this.shiftMode = 0;
+    //     this.shiftPressed = false;
+    //     this.setView('main');
+    //     if (this.terminalUI) {
+    //         this.terminalUI.setView('main');
+    //     }
+    //     this.midiOutput.setShiftButtonLight(0);
+    // }
+
+    handleTripleShiftPress() {
+        this.shiftPressCount = 0;
         this.shiftMode = 0;
         this.shiftPressed = false;
         this.setView('main');
-        if (this.terminalUI) {
-            this.terminalUI.setView('main');
-        }
         this.midiOutput.setShiftButtonLight(0);
     }
 
