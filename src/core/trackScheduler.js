@@ -28,7 +28,7 @@ class TrackScheduler {
 
     onTrackSettingsUpdate(newSettings) {
         let shouldResync = false;
-        if ('triggerType' in newSettings || 'triggerSettings' in newSettings) {
+        if ('triggerType' in newSettings || 'triggerSettings' in newSettings || 'resyncInterval' in newSettings) {
             // this.updateTriggerPattern();
             this.pendingReyncTriggerPattern = true;
             shouldResync = true;

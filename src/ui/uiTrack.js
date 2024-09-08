@@ -1,7 +1,7 @@
 const UIBase = require("./uiBase");
 const { PLAY_ORDER_NAMES, findMultiplierPreset } = require('../utils/utils');
 const { ARP_MODES_NAMES } = require('../utils/arps');
-const { EuclideanTriggerPattern, TRIGGER_TYPES, TRIGGER_TYPE_NAMES } = require('../patterns/triggerPatterns');
+const { EuclideanTriggerPattern, BinaryTriggerPattern, TRIGGER_TYPES, TRIGGER_TYPE_NAMES, StepTriggerPattern } = require('../patterns/triggerPatterns');
 
 class UITrack extends UIBase {
     constructor(terminalUI, sequencer) {
@@ -52,7 +52,8 @@ class UITrack extends UIBase {
                         value: () => {
                             const triggerSettings = settings.triggerSettings;
                             const pattern = new EuclideanTriggerPattern(triggerSettings.length, triggerSettings.hits, triggerSettings.shift);
-                            const patternString = Array.from({ length: triggerSettings.length }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
+                            const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
+                            const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
                             return patternString;
                         },
                         selectable: false,
@@ -89,12 +90,10 @@ class UITrack extends UIBase {
             this.rows.push({
                 name: 'Binary Pattern',
                 value: () => {
-                    const numbers = settings.triggerSettings.numbers;
-                    const print = numbers.reduce((acc, number) => {
-                        acc.push(number.toString(2).padStart(4, '0').split('').map(bit => bit === '1' ? '■' : '□').join(''));
-                        return acc;
-                    }, []);
-                    return print.join('');
+                    const pattern = BinaryTriggerPattern.fromNumbers(settings.triggerSettings.numbers);
+                    const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
+                    const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
+                    return patternString;
                 },
                 enter: () => {
                     this.terminalUI.setView('binaryPattern');
@@ -106,9 +105,10 @@ class UITrack extends UIBase {
             this.rows.push({
                 name: 'Step Pattern',
                 value: () => {
-                    const pattern = new Array(16).fill('□');
-                    settings.triggerSettings.steps.forEach(step => pattern[step] = '■');
-                    const patternString = pattern.join('');
+                    const triggerSettings = settings.triggerSettings;
+                    const pattern = new StepTriggerPattern(triggerSettings.steps);
+                    const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
+                    const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
                     return patternString;
                 },
                 enter: () => {

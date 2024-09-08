@@ -15,6 +15,7 @@ const TRIGGER_TYPE_NAMES = {
 class InitTriggerPattern {
     constructor(steps) {
         this.steps = steps;
+        this.pattern = [];
     }
 
     shouldTrigger() {
@@ -90,20 +91,48 @@ class StepTriggerPattern {
 }
 
 const triggerPatternFromSettings = (settings) => {
-    const { triggerType, triggerSettings, steps } = settings;
+    const { triggerType, triggerSettings, steps, resyncInterval } = settings;
+
+    let triggerClass = null;
     switch (triggerType) {
         case TRIGGER_TYPES.BINARY:
-            return BinaryTriggerPattern.fromNumbers(triggerSettings.numbers || []);
+            triggerClass = BinaryTriggerPattern.fromNumbers(triggerSettings.numbers || []);
+            break;
         case TRIGGER_TYPES.EUCLIDEAN:
-            return new EuclideanTriggerPattern(
+            triggerClass = new EuclideanTriggerPattern(
                 triggerSettings.length || steps,
                 triggerSettings.hits || 4,
                 triggerSettings.shift || 0
             );
+            break;
         case TRIGGER_TYPES.STEP:
-            return new StepTriggerPattern(triggerSettings.steps || []);
+            triggerClass = new StepTriggerPattern(triggerSettings.steps || []);
+            break;
+        default:
+            triggerClass = new InitTriggerPattern(steps);
     }
-    return new InitTriggerPattern(steps);
+
+    if (resyncInterval && resyncInterval > 0 && triggerClass.pattern.length > 0) {
+        const originalPattern = triggerClass.pattern;
+        let newPattern = [];
+
+        if (resyncInterval > originalPattern.length) {
+            // Repeat the pattern
+            while (newPattern.length < resyncInterval) {
+                newPattern = newPattern.concat(originalPattern);
+            }
+            // Cut if it's now longer than resyncInterval
+            newPattern = newPattern.slice(0, resyncInterval);
+        } else {
+            // Cut the original pattern
+            newPattern = originalPattern.slice(0, resyncInterval);
+        }
+
+        triggerClass.pattern = newPattern;
+        triggerClass.length = newPattern.length;
+    }
+
+    return triggerClass;
 };
 
 module.exports = { 
