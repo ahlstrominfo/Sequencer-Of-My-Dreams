@@ -87,6 +87,7 @@ class Track {
                 playMultiplier: noteSeries.playMultiplier,
                 wonkyArp: noteSeries.wonkyArp,
             }));
+            // this.sequencer.logger.log(JSON.stringify(newSettings.noteSeries));
         }
 
         if ('groove' in newSettings) {
