@@ -2,7 +2,7 @@ const MidiCommunicator = require('./midiCommunicator');
 const SequenceManager = require('./sequenceManager');
 const SongClock = require('./songClock');
 const { Track } = require('./track');
-const { conformNoteToScale, scaleNames } = require('../utils/utils');
+const { conformNoteToScale, SCALE_NAMES } = require('../utils/scales');
 const Logger = require('../utils/logger');
 
 class Sequencer {
@@ -126,7 +126,7 @@ class Sequencer {
         if ('progression' in newSettings) {
             newSettings.progression.forEach((step) => {
                 step.bars = Math.max(1, Math.min(16, step.bars));
-                step.scale = Math.max(0, Math.min(Object.keys(scaleNames).length, step.scale));
+                step.scale = Math.max(0, Math.min(Object.keys(SCALE_NAMES).length, step.scale));
                 step.transposition = Math.max(-24, Math.min(24, step.transposition));
             });
         }
@@ -203,7 +203,7 @@ class Sequencer {
     }
 
     getCurrentScaleName() {
-        return scaleNames[this.settings.scale];
+        return SCALE_NAMES[this.settings.scale];
     }
 
     getCurrentTransposition() {

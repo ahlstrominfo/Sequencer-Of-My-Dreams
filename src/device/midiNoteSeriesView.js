@@ -1,7 +1,7 @@
 
 const MidiView = require('./midiView');
 const midiSettings = require('../../data/midiDeviceSettings.json');
-const { scaleNumber } = require('../utils/utils');
+const { scaleNumber } = require('../utils/scales');
 
 class MidiNoteSeriesView extends MidiView {
     activate(trackIndex) {

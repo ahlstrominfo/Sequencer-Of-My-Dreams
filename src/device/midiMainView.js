@@ -1,6 +1,6 @@
 const midiSettings = require('../../data/midiDeviceSettings.json');
 const MidiView = require('./midiView');
-const { scaleNumber } = require('../utils/utils');
+const { scaleNumber } = require('../utils/scales');
 
 class MidiMainView extends MidiView {
     constructor(controller) {

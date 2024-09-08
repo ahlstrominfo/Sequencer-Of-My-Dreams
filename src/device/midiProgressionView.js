@@ -1,6 +1,6 @@
 const MidiView = require('./midiView');
 const midiSettings = require('../../data/midiDeviceSettings.json');
-const { scaleNumber, scaleNames } = require('../utils/utils');
+const { scaleNumber, SCALE_NAMES } = require('../utils/scales');
 
 class MidiProgressionView extends MidiView {
     constructor(controller) {
@@ -53,7 +53,7 @@ class MidiProgressionView extends MidiView {
                 break;
             case 1:
                 // Scale
-                currentProgressionStep.scale = Math.max(0, Math.min(Object.keys(scaleNames).length - 1, this.knobValue(currentProgressionStep.scale, value, true)));
+                currentProgressionStep.scale = Math.max(0, Math.min(Object.keys(SCALE_NAMES).length - 1, this.knobValue(currentProgressionStep.scale, value, true)));
                 this.controller.sequencer.updateSettings({ progression });
                 this.showNumber(currentProgressionStep.scale);
                 break;
@@ -76,7 +76,7 @@ class MidiProgressionView extends MidiView {
         const currentProgressionStep = progression[this.currentStep];
 
         midiOutput.setEncoderRingValue(0, scaleNumber(1, 8, 1, 11, currentProgressionStep.bars));
-        midiOutput.setEncoderRingValue(1, scaleNumber(0, Object.keys(scaleNames).length - 1, 1, 11, currentProgressionStep.scale));
+        midiOutput.setEncoderRingValue(1, scaleNumber(0, Object.keys(SCALE_NAMES).length - 1, 1, 11, currentProgressionStep.scale));
         midiOutput.setEncoderRingValue(2, scaleNumber(-24, 24, 1, 11, currentProgressionStep.transposition));
 
         if (this.isShowingNumber) {

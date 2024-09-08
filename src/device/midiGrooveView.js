@@ -1,6 +1,7 @@
 const MidiView = require('./midiView');
 const midiSettings = require('../../data/midiDeviceSettings.json');
-const { scaleNumber, musicalGrooves } = require('../utils/utils');
+const { musicalGrooves } = require('../utils/utils');
+const { scaleNumber } = require('../utils/scales');
 
 class MidiGrooveView extends MidiView {
     constructor(controller) {

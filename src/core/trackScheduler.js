@@ -1,6 +1,7 @@
 const GrooveManager = require('./grooveManager');
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
-const { generateChord, PLAY_ORDER } = require('../utils/utils');
+const { PLAY_ORDER } = require('../utils/utils');
+const { generateChord } = require('../utils/scales');
 const { ARP_MODES, getArpeggiatedNotes} = require('../utils/arps');
 
 // Constants
@@ -312,25 +313,7 @@ class TrackScheduler {
         setTimeout(() => this.activeNotes.add(pitch), startTime - currentTime);
         setTimeout(() => this.activeNotes.delete(pitch), startTime + duration - currentTime);
     }
-
-    // getNextNote(noteIndex) {
-    //     const noteSettings = this.track.settings.noteSeries[noteIndex];
-    //     const { rootNote, numberOfNotes, inversion, pitchSpan } = noteSettings;
-    //     const currentScaleType = this.sequencer.getCurrentScale();
-
-    //     let chord = generateChord(rootNote, {
-    //         numberOfNotes,
-    //         inversion,
-    //         scaleType: currentScaleType
-    //     });
-
-    //     if (pitchSpan > 0) {
-    //         chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
-    //     }
-
-    //     return chord;
-    // }
-
+    
     getNextNote(noteIndex) {
         const noteSettings = this.track.settings.noteSeries[noteIndex];
         const { rootNote, numberOfNotes, inversion, pitchSpan, spread } = noteSettings;

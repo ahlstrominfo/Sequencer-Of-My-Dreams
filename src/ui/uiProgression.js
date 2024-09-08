@@ -1,5 +1,5 @@
 const UIBase = require("./uiBase");
-const { scaleNames } = require('../utils/utils');
+const { SCALE_NAMES } = require('../utils/scales');
 
 
 class UIProgression extends UIBase {
@@ -22,7 +22,7 @@ class UIProgression extends UIBase {
                 },
                 {
                     name: 'Scale',
-                    value: () => scaleNames[chord.scale],
+                    value: () => SCALE_NAMES[chord.scale],
                     handle: (delta) => {
                         chord.scale = chord.scale + delta;
                         this.sequencer.updateSettings({ progression });
