@@ -21,6 +21,14 @@ class UIProgression extends UIBase {
                     }
                 },
                 {
+                    name: 'Beats',
+                    value: () => chord.beats,
+                    handle: (delta, step) => {
+                        chord.beats = chord.beats + delta * step;
+                        this.sequencer.updateSettings({ progression });
+                    }
+                },                
+                {
                     name: 'Scale',
                     value: () => SCALE_NAMES[chord.scale],
                     handle: (delta) => {

@@ -15,11 +15,12 @@ class Sequencer {
             transposition: 0,
             timeSignature: [4, 4],
             swing: 0,
-            progression: [{ bars: 4, scale: 0, transposition: 0 }],
+            progression: [{ bars: 4, beats: 0, scale: 0, transposition: 0 }],
             activeStates: Array(16).fill().map(() => Array(16).fill(true)),
             currentActiveState: 0
         };
 
+        this.beatCounter = 0;
         this.tracks = [];
         this.isPlaying = false;
         this.midi = new MidiCommunicator(this);
@@ -29,28 +30,30 @@ class Sequencer {
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
         this.tickDuration = this.calculateTickDuration();
 
-        this.log = new Logger();
+        this.logger = new Logger();
 
         this.loadActiveStates = false;
 
         this.cleanSequencer();
-
         this.setupClockCallbacks();
 
         this.listeners = {};
     }
 
     setupClockCallbacks() {
+        
         this.clock.setOnClockTickCallback(() => {
             this.midi.sendClock();
         });
         this.updateProgressionIfNeeded(0); // to fix the first bar.
-        this.clock.setOnBarChangeCallback((bar) => {
+        this.clock.setOnBarChangeCallback(() => {
             if(this.loadActiveStates) {
                 this.setActiveState();
                 this.loadActiveStates = false;
             }
-            this.updateProgressionIfNeeded(bar);
+        });
+        this.clock.setOnBeatChangeCallback((beat) => {
+            this.updateProgressionIfNeeded(beat);
         });
     }
 
@@ -92,6 +95,7 @@ class Sequencer {
     stop() {
         if (this.isPlaying) {
             this.isPlaying = false;
+            this.beatCounter = 0;
             this.updateProgressionIfNeeded(0); // to fix the first bar.
             this.clock.stop();
             this.midi.sendStop();
@@ -123,7 +127,17 @@ class Sequencer {
 
         if ('progression' in newSettings) {
             newSettings.progression.forEach((step) => {
-                step.bars = Math.max(1, Math.min(16, step.bars));
+                
+                if (step.beats === null) {
+                    step.beats = 0;
+                }
+                step.beats = Math.max(0, Math.min(this.settings.timeSignature[0], step.beats));
+
+                step.bars = Math.max(0, Math.min(16, step.bars));
+                if (step.beats === 0 && step.bars === 0) {
+                    step.bars = 1;
+                }
+
                 step.scale = Math.max(0, Math.min(Object.keys(SCALE_NAMES).length, step.scale));
                 step.transposition = Math.max(-24, Math.min(24, step.transposition));
             });
@@ -148,8 +162,7 @@ class Sequencer {
             }
         }
 
-
-
+        this.beatCounter = 0;
         this.settings.scale = this.settings.progression[0].scale;
         this.settings.transposition = this.settings.progression[0].transposition;
         this.sequenceManager.saveToTmp();
@@ -184,15 +197,18 @@ class Sequencer {
         setImmediate(() => this.scheduleLoop());
     }
 
-    updateProgressionIfNeeded(currentBar) {
-        let totalBars = 0;
-        let maxBars = this.settings.progression.reduce((acc, val) => acc + val.bars, 0);
-        currentBar = currentBar % maxBars;
+    updateProgressionIfNeeded() {
+        this.beatCounter++;
+
+        let totalBeats = 0;
+        const beatsPerBar = this.settings.timeSignature[0];
+        let maxBeats = this.settings.progression.reduce((acc, val) => acc + val.bars * beatsPerBar + val.beats, 0);
+        this.beatCounter = this.beatCounter % maxBeats;
 
         for (const step of this.settings.progression) {
-            totalBars += step.bars;
+            totalBeats += step.bars * beatsPerBar + step.beats;
             
-            if (currentBar < totalBars) {
+            if (this.beatCounter < totalBeats) {
                 this.settings.scale = step.scale;
                 this.settings.transposition = step.transposition;
                 break;
