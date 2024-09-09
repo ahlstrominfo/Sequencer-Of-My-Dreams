@@ -37,10 +37,10 @@ class UIGroove extends UIBase {
                 {
                     name: 'Delete',
                     enter: () => {
-                        if (track.settings.groove.length <= 1) {
-                            return;
-                        }
                         track.settings.groove.splice(index, 1);
+                        this.updateTrackSettingsAndReload({
+                            groove: track.settings.groove
+                        });
                         this.openView();
                     }
                 }
@@ -54,7 +54,8 @@ class UIGroove extends UIBase {
                 }
             });
         });
-        this.rows.push({
+
+        track.settings.groove.length > 0 && this.rows.push({
             name: ' ',
             selectable: false
         });
@@ -62,10 +63,21 @@ class UIGroove extends UIBase {
         this.rows.push({
             name: 'Add new groove step',
             enter: () => {
-                const lastGrooveStep = track.settings.groove[track.settings.groove.length - 1];
-                const newGrooveStep = { ...lastGrooveStep };
-                track.settings.groove.push(newGrooveStep);
-                this.editRow = track.settings.groove.length - 1;
+                if (track.settings.groove.length === 0) {
+                    track.updateSettings({
+                        groove: [
+                            {
+                                timeOffset: 0,
+                                velocityOffset: 0
+                            }
+                        ]
+                    });
+                } else {
+                    const lastGrooveStep = track.settings.groove[track.settings.groove.length - 1];
+                    const newGrooveStep = { ...lastGrooveStep };
+                    track.settings.groove.push(newGrooveStep);
+                    this.editRow = track.settings.groove.length - 1;
+                }
                 this.openView();
             },
             rowRender: ({isSelected}) => {

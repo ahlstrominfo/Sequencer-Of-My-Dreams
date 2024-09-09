@@ -33,10 +33,7 @@ class Track {
                 shift: 0,
                 steps: [],
             },
-            groove: [{
-               timeOffset: 0,
-               velocityOffset: 0 
-            }],
+            groove: [],
             grooveName: 'Steady',
             resyncInterval: 0,
             speedMultiplier: 1,
