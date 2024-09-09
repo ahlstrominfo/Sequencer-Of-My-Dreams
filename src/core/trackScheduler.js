@@ -1,7 +1,7 @@
 const GrooveManager = require('./grooveManager');
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
 const { PLAY_ORDER } = require('../utils/utils');
-const { generateChord } = require('../utils/scales');
+const { generateChord, conformNoteToScale } = require('../utils/scales');
 const { ARP_MODES, getArpeggiatedNotes} = require('../utils/arps');
 
 // Constants
@@ -234,7 +234,7 @@ class TrackScheduler {
         const { arpMode, channel, wonkyArp } = this.track.settings;
         let playMultiplier = this.track.settings.playMultiplier;
 
-        if (noteSettings.arpMode !== ARP_MODES.OFF) {
+        if (noteSettings.arpMode !== ARP_MODES.OFF && noteSettings.arpMode !== ARP_MODES.USE_TRACK) {
             playMultiplier = noteSettings.playMultiplier;
         }
 
@@ -296,6 +296,15 @@ class TrackScheduler {
         if (!this.track.settings.isActive) return;
 
         velocity = Math.max(MIDI_MIN_VELOCITY, Math.min(MIDI_MAX_VELOCITY, velocity * (this.track.settings.volume / 100)));
+
+        if (this.track.settings.conformNotes) {
+            const progressionInfo = this.getProgressionInfo(startTime);
+            pitch = conformNoteToScale(
+                pitch, 
+                this.sequencer.settings.key,
+                progressionInfo.scale,
+                progressionInfo.transposition);
+        }
 
         this.sequencer.queueNoteEvent({
             time: startTime,
@@ -373,6 +382,11 @@ class TrackScheduler {
 
     getActiveNotes() {
         return Array.from(this.activeNotes);
+    }
+
+    getProgressionInfo(time) {
+        const { bar, beat } = this.sequencer.clock.getPositionFromTime(time);
+        return this.sequencer.getProgressionAtPosition(bar, beat);
     }
 }
 

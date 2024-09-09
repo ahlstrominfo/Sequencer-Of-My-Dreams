@@ -350,7 +350,49 @@ class Sequencer {
         });
 
         this.midi.stopAllActiveNotes();
-    }    
+    }
+
+    getProgressionAtPosition(bar, beat) {
+        const beatsPerBar = this.settings.timeSignature[0];
+        let totalBeats = (bar * beatsPerBar) + beat;
+        
+        const currentProgression = this.settings.progressions[this.settings.currentProgressionIndex];
+        let totalProgressionBeats = 0;
+        
+        // Calculate total beats in the progression
+        currentProgression.forEach(step => {
+            totalProgressionBeats += (step.bars * beatsPerBar) + step.beats;
+        });
+    
+        // Wrap around if necessary
+        totalBeats = totalBeats % totalProgressionBeats;
+    
+        let accumulatedBeats = 0;
+        
+        for (let i = 0; i < currentProgression.length; i++) {
+            const step = currentProgression[i];
+            const stepDuration = (step.bars * beatsPerBar) + step.beats;
+            accumulatedBeats += stepDuration;
+    
+            if (totalBeats < accumulatedBeats) {
+                return {
+                    progressionIndex: this.settings.currentProgressionIndex,
+                    stepIndex: i,
+                    scale: step.scale,
+                    transposition: step.transposition
+                };
+            }
+        }
+    
+        // This should never happen if the calculations are correct, but let's handle it just in case
+        console.warn("Unexpected state in getProgressionAtPosition. Returning first step.");
+        return {
+            progressionIndex: this.settings.currentProgressionIndex,
+            stepIndex: 0,
+            scale: currentProgression[0].scale,
+            transposition: currentProgression[0].transposition
+        };
+    }
 }
 
 module.exports = Sequencer;

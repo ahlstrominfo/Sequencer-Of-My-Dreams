@@ -20,9 +20,6 @@ class MidiCommunicator {
             const event = this.eventQueue.shift();
             
             if (event.type === 'note') {
-                if (event.conformNotes) {
-                    event.message.note = this.sequencer.conformNoteToScale(event.message.note);
-                }
                 this.sendMidiMessage({ type: 'noteon', message: event.message });
                 this.eventQueue = this.eventQueue.filter(e => !(e.type === 'noteoff' 
                     && e.message.note === event.message.note 

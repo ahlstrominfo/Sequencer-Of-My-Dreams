@@ -90,15 +90,11 @@ class SongClock {
         return timeInSeconds * 1000; // Convert to milliseconds
     }
 
-    getPositionAtTime(time) {
-        const beatTime = 60 / this.bpm; // Time for one beat in seconds
-        const totalBeats = time / (beatTime * 1000); // Convert time to beats
-
-        const beatsPerBar = this.timeSignature[0];
-        const bar = Math.floor(totalBeats / beatsPerBar);
-        const beat = Math.floor(totalBeats % beatsPerBar);
-        const tick = Math.round((totalBeats % 1) * this.ppq);
-
+    getPositionFromTime(time) {
+        const beatsElapsed = (time / 60000) * this.bpm;
+        const bar = Math.floor(beatsElapsed / this.timeSignature[0]);
+        const beat = Math.floor(beatsElapsed % this.timeSignature[0]);
+        const tick = Math.floor((beatsElapsed % 1) * this.ppq);
         return { bar, beat, tick };
     }
 
