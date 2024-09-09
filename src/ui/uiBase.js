@@ -145,8 +145,6 @@ class UIBase {
     }
 
     handleLeave() {
-        this.editCol = 0;
-        this.editRow = 0;
     }
 
     // eslint-disable-next-line no-unused-vars

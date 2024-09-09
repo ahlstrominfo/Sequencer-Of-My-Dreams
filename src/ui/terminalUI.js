@@ -18,6 +18,7 @@ class TerminalUI {
         this.currentTrack = 0;
         this.logger = new Logger();
         this.useLogRecording = true;
+        this.viewPositions = {};
 
         this.views = {
             main: new UIMain(this, sequencer),
@@ -52,11 +53,36 @@ class TerminalUI {
         });
     }
 
+    // setView(viewName, ...args) {
+    //     if (this.currentView) {
+    //         this.currentView.handleLeave();
+    //     }
+    //     this.currentView = this.views[viewName];
+    //     this.currentView.openView(viewName, ...args);
+    // }
+
     setView(viewName, ...args) {
         if (this.currentView) {
+            // Store the current position before leaving the view
+            this.viewPositions[this.currentView.constructor.name] = {
+                editRow: this.currentView.editRow,
+                editCol: this.currentView.editCol
+            };
             this.currentView.handleLeave();
         }
         this.currentView = this.views[viewName];
+        
+        // Restore the previous position if it exists
+        const savedPosition = this.viewPositions[this.currentView.constructor.name];
+        if (savedPosition) {
+            this.currentView.editRow = savedPosition.editRow;
+            this.currentView.editCol = savedPosition.editCol;
+        } else {
+            // Reset to default if no saved position
+            this.currentView.editRow = 0;
+            this.currentView.editCol = 0;
+        }
+
         this.currentView.openView(viewName, ...args);
     }
 
