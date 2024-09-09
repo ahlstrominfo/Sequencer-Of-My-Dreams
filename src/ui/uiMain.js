@@ -178,6 +178,17 @@ class UIMain extends UIBase {
                 },
             };
         });
+
+        activeStateRows.push({
+            value: () => {
+                return this.sequencer.settings.currentProgressionIndex;
+            },
+            handle: (delta) => {
+                const currentProgressionIndex = this.sequencer.settings.currentProgressionIndex + delta;
+                this.sequencer.updateSettings({ currentProgressionIndex });
+            },
+        });
+
         this.rows.push({
             cols: activeStateRows,
             layout: 1,

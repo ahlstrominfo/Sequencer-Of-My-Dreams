@@ -56,7 +56,7 @@ class Track {
         this.trackScheduler.updateTriggerPattern();
     }
 
-    updateSettings(newSettings) {
+    updateSettings(newSettings, shouldSaveToTmp = true) {
         if ('triggerSettings' in newSettings) {
             newSettings.triggerSettings = {
                 ...this.settings.triggerSettings,
@@ -134,7 +134,7 @@ class Track {
 
         // Additional logic after updating settings
         this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
-        this.sequencer.sequenceManager.saveToTmp();
+        shouldSaveToTmp && this.sequencer.sequenceManager.saveToTmp();
         this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
     }
 }

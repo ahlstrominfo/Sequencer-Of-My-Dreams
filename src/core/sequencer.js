@@ -16,7 +16,7 @@ class Sequencer {
             timeSignature: [4, 4],
             swing: 0,
             progressions: null,
-            currentProgressionIndex: 0,
+            currentProgressionIndex: null,
             activeStates: Array(16).fill().map(() => Array(16).fill(true)),
             currentActiveState: 0
         };
@@ -78,6 +78,8 @@ class Sequencer {
         if (!this.isPlaying) {
             this.isPlaying = true;
             
+            this.updateProgressionIfNeeded(0);
+
             // Pre-calculate initial events
             const initialTime = this.clock.getCurrentTime();
             const initialLookAhead = initialTime + this.scheduleAheadTime;
@@ -122,7 +124,7 @@ class Sequencer {
         return this.settings.scale;
     }
 
-    updateSettings(newSettings) {
+    updateSettings(newSettings, shouldSaveToTmp = true) {
         const oldActiveState = this.settings.currentActiveState;
         const oldBpm = this.settings.bpm;
         const oldTimeSignature = this.settings.timeSignature;        
@@ -153,10 +155,15 @@ class Sequencer {
                     step.transposition = Math.max(-24, Math.min(24, step.transposition));
                 });
             });
+
+            if (!('currentProgressionIndex' in newSettings)) {
+                newSettings.currentProgressionIndex = Math.max(0, Math.min(newSettings.progressions.length - 1, this.settings.currentProgressionIndex));
+                newSettings.currentProgressionIndex = this.settings.currentProgressionIndex || 0;
+            }
         }
 
         if ('currentProgressionIndex' in newSettings) {
-            const progressionLength = this.settings.progressions ? this.settings.progressions.length : 0;
+            const progressionLength = (newSettings.progressions || this.settings.progressions || []).length;
             newSettings.currentProgressionIndex = Math.max(0, Math.min(progressionLength - 1, newSettings.currentProgressionIndex));
         }
 
@@ -178,12 +185,13 @@ class Sequencer {
                 this.setActiveState();
             }
         }
-        
-        if ('progressions' in newSettings || 'currentProgressionIndex' in newSettings) {            this.calculateProgressionSteps();
+
+        if ('progressions' in newSettings || 'currentProgressionIndex' in newSettings) {
+            this.calculateProgressionSteps();
         }
 
         this.beatCounter = 0;
-        this.sequenceManager.saveToTmp();
+        shouldSaveToTmp && this.sequenceManager.saveToTmp();
     }
     
     calculateTickDuration() {
@@ -192,7 +200,7 @@ class Sequencer {
 
     updateTrackSettings(index, trackSettings) {
         if (index >= 0 && index < this.tracks.length) {
-            this.tracks[index].updateSettings(trackSettings);
+            this.tracks[index].updateSettings(trackSettings, false);
         } else {
             this.tracks.push(new Track(trackSettings, this, index));        }
     }    
@@ -240,8 +248,8 @@ class Sequencer {
                 return;
             }
         }
-        this.settings.scale = this.progressionSteps[0].scale;
-        this.settings.transposition = this.progressionSteps[0].transposition;
+        this.settings.scale = this.progressionSteps[this.settings.currentProgressionIndex].scale;
+        this.settings.transposition = this.progressionSteps[this.settings.currentProgressionIndex].transposition;
     }
 
     getCurrentScaleName() {

@@ -104,7 +104,7 @@ class SequenceManager {
         if (fs.existsSync(filePath)) {
             const fileContent = fs.readFileSync(filePath, 'utf8');
             const sequenceData = JSON.parse(fileContent);
-            this.sequencer.updateSettings(sequenceData.settings);
+            this.sequencer.updateSettings(sequenceData.settings, false);
             sequenceData.tracks.forEach((trackSettings, index) => {
                 this.sequencer.updateTrackSettings(index, trackSettings);
             });
