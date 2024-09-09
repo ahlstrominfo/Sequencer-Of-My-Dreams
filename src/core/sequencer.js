@@ -115,10 +115,6 @@ class Sequencer {
         return this.settings.scale;
     }
 
-    sendCurrentPosition() {
-        this.midi.sendCurrentPosition();
-    }
-
     updateSettings(newSettings) {
         const oldActiveState = this.settings.currentActiveState;
 

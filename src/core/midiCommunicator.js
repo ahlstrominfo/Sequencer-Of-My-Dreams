@@ -90,10 +90,6 @@ class MidiCommunicator {
         this.output.send('stop');
     }
 
-    sendContinue() {
-        this.output.send('continue');
-    }
-
     stopAllActiveNotes() {
         for (const [trackId, notes] of this.activeNotes) {
             for (const note of notes) {

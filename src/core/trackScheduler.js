@@ -363,10 +363,6 @@ class TrackScheduler {
         return (MILLISECONDS_PER_MINUTE / beatsPerMinute) * (1 / stepsPerBeat) / this.track.settings.speedMultiplier;
     }
 
-    shouldResync() {
-        return this.track.settings.resyncInterval > 0 && this.globalStep > 0 && this.globalStep % this.track.settings.resyncInterval === 0;
-    }
-
     ensureValidNoteIndex() {
         if (this.track.settings.noteSeries.length === 0) {
             this.currentNoteIndex = 0;

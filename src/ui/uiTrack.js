@@ -327,12 +327,6 @@ class UITrack extends UIBase {
 
     }
 
-    updateSettings(settings) {
-        const track = this.sequencer.tracks[this.terminalUI.currentTrack];
-        track.updateSettings(settings);
-        this.openView();
-    }
-
     handleEscape() {
         if (this.isEditingField) {
             this.isEditingField = false;
