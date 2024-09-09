@@ -15,7 +15,8 @@ class Sequencer {
             transposition: 0,
             timeSignature: [4, 4],
             swing: 0,
-            progression: [{ bars: 4, beats: 0, scale: 0, transposition: 0 }],
+            progressions: null,
+            currentProgressionIndex: 0,
             activeStates: Array(16).fill().map(() => Array(16).fill(true)),
             currentActiveState: 0
         };
@@ -41,7 +42,6 @@ class Sequencer {
 
         this.maxBeats = 0;
         this.progressionSteps = [];
-        this.calculateProgressionSteps();
     }
 
     setupClockCallbacks() {
@@ -49,7 +49,6 @@ class Sequencer {
         this.clock.setOnClockTickCallback(() => {
             this.midi.sendClock();
         });
-        // this.updateProgressionIfNeeded(0); // to fix the first bar.
         this.clock.setOnBarChangeCallback(() => {
             if(this.loadActiveStates) {
                 this.setActiveState();
@@ -126,26 +125,39 @@ class Sequencer {
     updateSettings(newSettings) {
         const oldActiveState = this.settings.currentActiveState;
         const oldBpm = this.settings.bpm;
-        const oldTimeSignature = this.settings.timeSignature;
-        const oldProgression = this.settings.progression;
-        
+        const oldTimeSignature = this.settings.timeSignature;        
 
         if ('progression' in newSettings) {
-            newSettings.progression.forEach((step) => {
+            if (newSettings['progressions'] === undefined) { // this is for the old format
+                newSettings['progressions'] = [newSettings.progression];
+            }
+            delete newSettings.progression;
+            delete this.progressionSteps;
+        }
+
+        if ('progressions' in newSettings) {
+            newSettings.progressions.forEach(progression => {
+                progression.forEach((step) => {
                 
-                if (step.beats === null) {
-                    step.beats = 0;
-                }
-                step.beats = Math.max(0, Math.min(this.settings.timeSignature[0], step.beats));
-
-                step.bars = Math.max(0, Math.min(16, step.bars));
-                if (step.beats === 0 && step.bars === 0) {
-                    step.bars = 1;
-                }
-
-                step.scale = Math.max(0, Math.min(Object.keys(SCALE_NAMES).length, step.scale));
-                step.transposition = Math.max(-24, Math.min(24, step.transposition));
+                    if (step.beats === null) {
+                        step.beats = 0;
+                    }
+                    step.beats = Math.max(0, Math.min(this.settings.timeSignature[0], step.beats));
+    
+                    step.bars = Math.max(0, Math.min(16, step.bars));
+                    if (step.beats === 0 && step.bars === 0) {
+                        step.bars = 1;
+                    }
+    
+                    step.scale = Math.max(0, Math.min(Object.keys(SCALE_NAMES).length, step.scale));
+                    step.transposition = Math.max(-24, Math.min(24, step.transposition));
+                });
             });
+        }
+
+        if ('currentProgressionIndex' in newSettings) {
+            const progressionLength = this.settings.progressions ? this.settings.progressions.length : 0;
+            newSettings.currentProgressionIndex = Math.max(0, Math.min(progressionLength - 1, newSettings.currentProgressionIndex));
         }
 
         Object.assign(this.settings, newSettings);
@@ -167,13 +179,10 @@ class Sequencer {
             }
         }
         
-        if (oldProgression !== this.settings.progression || oldTimeSignature !== this.settings.timeSignature) {
-            this.calculateProgressionSteps();
+        if ('progressions' in newSettings || 'currentProgressionIndex' in newSettings) {            this.calculateProgressionSteps();
         }
 
         this.beatCounter = 0;
-        this.settings.scale = this.settings.progression[0].scale;
-        this.settings.transposition = this.settings.progression[0].transposition;
         this.sequenceManager.saveToTmp();
     }
     
@@ -185,9 +194,7 @@ class Sequencer {
         if (index >= 0 && index < this.tracks.length) {
             this.tracks[index].updateSettings(trackSettings);
         } else {
-            this.tracks.push(new Track(trackSettings, this, index));
-            // console.error(`Invalid track index: ${index}`);
-        }
+            this.tracks.push(new Track(trackSettings, this, index));        }
     }    
 
     scheduleLoop() {
@@ -211,7 +218,8 @@ class Sequencer {
         this.maxBeats = 0;
         this.progressionSteps = [];
 
-        for (const step of this.settings.progression) {
+        const currentProgression = this.settings.progressions[this.settings.currentProgressionIndex];
+        currentProgression.forEach((step) => {
             const stepBeats = step.bars * beatsPerBar + step.beats;
             this.maxBeats += stepBeats;
             this.progressionSteps.push({
@@ -219,7 +227,7 @@ class Sequencer {
                 scale: step.scale,
                 transposition: step.transposition
             });
-        }
+        });
     }
 
     updateProgressionIfNeeded() {
@@ -229,9 +237,11 @@ class Sequencer {
             if (this.beatCounter < step.endBeat) {
                 this.settings.scale = step.scale;
                 this.settings.transposition = step.transposition;
-                break;
+                return;
             }
         }
+        this.settings.scale = this.progressionSteps[0].scale;
+        this.settings.transposition = this.progressionSteps[0].transposition;
     }
 
     getCurrentScaleName() {
@@ -271,7 +281,6 @@ class Sequencer {
             }
             this.addTrack(defaultTrackSettings);
         }
-        this.settings.progression = [{ bars: 4, scale: 0, transposition: 0 }];
         this.settings.currentActiveState = 0;
         this.settings.activeStates = Array(16).fill().map(() => Array(16).fill(true));
         this.settings.bpm = 120;

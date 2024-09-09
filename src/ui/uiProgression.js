@@ -9,7 +9,7 @@ class UIProgression extends UIBase {
 
     openView() {
         this.rows = [];
-        const progression = this.sequencer.settings.progression;
+        const progression = this.sequencer.settings.progressions[0];
         progression.forEach((chord, index) => {
             const cols = [
                 {

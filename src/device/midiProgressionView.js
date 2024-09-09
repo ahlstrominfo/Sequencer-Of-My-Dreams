@@ -17,7 +17,7 @@ class MidiProgressionView extends MidiView {
 
     handleButtonPress(note, shiftMode) {
         const buttonIndex = midiSettings.trackButtonNotes.indexOf(note);
-        const progression = this.controller.sequencer.settings.progression;
+        const progression = this.controller.sequencer.settings.progressions[0];
 
         if (buttonIndex !== -1) {
             if (shiftMode !== 0 && progression.length > 1) {
@@ -41,7 +41,7 @@ class MidiProgressionView extends MidiView {
 
     handleKnobTurn(cc, value, shiftMode) {
         const currentKnobValue = cc - 16 + (shiftMode !== 0 ? 8 : 0);
-        const progression = this.controller.sequencer.settings.progression;
+        const progression = this.controller.sequencer.settings.progressions[0];
         const currentProgressionStep = progression[this.currentStep];
 
         switch (currentKnobValue) {
@@ -67,7 +67,7 @@ class MidiProgressionView extends MidiView {
     }
 
     updateLights() {
-        const progression = this.controller.sequencer.settings.progression;
+        const progression = this.controller.sequencer.settings.progressions[0];
         const midiOutput = this.controller.midiOutput;
 
         this.turnOffAllEncoderLights();
