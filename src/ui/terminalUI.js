@@ -44,7 +44,11 @@ class TerminalUI {
         }, 10000);
 
         this.sequencer.registerListener('trackSettingsUpdated', () => {
+            const currentViewCopy = Object.assign({}, this.currentView);
+
             this.currentView.openView();
+            this.currentView.editRow = currentViewCopy.editRow;
+            this.currentView.editCol = currentViewCopy.editCol;
         });
     }
 
