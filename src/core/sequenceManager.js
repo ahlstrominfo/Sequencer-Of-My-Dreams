@@ -30,7 +30,8 @@ class SequenceManager {
 
         const sequenceData = {
             settings: this.sequencer.settings,
-            tracks: this.sequencer.tracks.map(track => track.settings)
+            tracks: this.sequencer.tracks.map(track => track.settings),
+            currentFileName: fileName
         };
 
         fs.writeFileSync(filePath, JSON.stringify(sequenceData, null, 2));
