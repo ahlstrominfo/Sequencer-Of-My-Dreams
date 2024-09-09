@@ -161,6 +161,44 @@ class SongClock {
         // Schedule next clock check
         setImmediate(() => this.clockLoop());
     }
+
+    fastForward(bars) {
+        if (!this.isRunning) return;
+        const currentPosition = this.getPosition();
+        const newPosition = {
+            bar: currentPosition.bar + bars,
+            beat: currentPosition.beat,
+            tick: currentPosition.tick
+        };
+        this.setPosition(newPosition);
+    }
+
+    rewind(bars) {
+        if (!this.isRunning) return;
+        const currentPosition = this.getPosition();
+        const newPosition = {
+            bar: Math.max(0, currentPosition.bar - bars),
+            beat: currentPosition.beat,
+            tick: currentPosition.tick
+        };
+        this.setPosition(newPosition);
+    }
+
+    setPosition(position) {
+        const newTime = this.getTimeAtPosition(position);
+        const elapsed = newTime - this.getCurrentTime();
+        this.startTime -= BigInt(Math.round(elapsed * 1e6));
+        this.clockTick = Math.floor((newTime / 1000) * 24 * (this.bpm / 60));
+        this.lastClockTime = hrtime.bigint() - BigInt(Math.round((newTime % (1000 / 24)) * 1e6));
+        this.clockAccumulator = 0n;
+
+        if (this.onBarChangeCallback) {
+            this.onBarChangeCallback(position.bar);
+        }
+        if (this.onBeatChangeCallback) {
+            this.onBeatChangeCallback(position.beat);
+        }
+    }
 }
 
 module.exports = SongClock;

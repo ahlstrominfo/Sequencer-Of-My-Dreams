@@ -38,6 +38,10 @@ class Sequencer {
         this.setupClockCallbacks();
 
         this.listeners = {};
+
+        this.maxBeats = 0;
+        this.progressionSteps = [];
+        this.calculateProgressionSteps();
     }
 
     setupClockCallbacks() {
@@ -45,7 +49,7 @@ class Sequencer {
         this.clock.setOnClockTickCallback(() => {
             this.midi.sendClock();
         });
-        this.updateProgressionIfNeeded(0); // to fix the first bar.
+        // this.updateProgressionIfNeeded(0); // to fix the first bar.
         this.clock.setOnBarChangeCallback(() => {
             if(this.loadActiveStates) {
                 this.setActiveState();
@@ -121,9 +125,10 @@ class Sequencer {
 
     updateSettings(newSettings) {
         const oldActiveState = this.settings.currentActiveState;
-
         const oldBpm = this.settings.bpm;
         const oldTimeSignature = this.settings.timeSignature;
+        const oldProgression = this.settings.progression;
+        
 
         if ('progression' in newSettings) {
             newSettings.progression.forEach((step) => {
@@ -161,6 +166,10 @@ class Sequencer {
                 this.setActiveState();
             }
         }
+        
+        if (oldProgression !== this.settings.progression || oldTimeSignature !== this.settings.timeSignature) {
+            this.calculateProgressionSteps();
+        }
 
         this.beatCounter = 0;
         this.settings.scale = this.settings.progression[0].scale;
@@ -197,18 +206,27 @@ class Sequencer {
         setImmediate(() => this.scheduleLoop());
     }
 
-    updateProgressionIfNeeded() {
-        this.beatCounter++;
-
-        let totalBeats = 0;
+    calculateProgressionSteps() {
         const beatsPerBar = this.settings.timeSignature[0];
-        let maxBeats = this.settings.progression.reduce((acc, val) => acc + val.bars * beatsPerBar + val.beats, 0);
-        this.beatCounter = this.beatCounter % maxBeats;
+        this.maxBeats = 0;
+        this.progressionSteps = [];
 
         for (const step of this.settings.progression) {
-            totalBeats += step.bars * beatsPerBar + step.beats;
-            
-            if (this.beatCounter < totalBeats) {
+            const stepBeats = step.bars * beatsPerBar + step.beats;
+            this.maxBeats += stepBeats;
+            this.progressionSteps.push({
+                endBeat: this.maxBeats,
+                scale: step.scale,
+                transposition: step.transposition
+            });
+        }
+    }
+
+    updateProgressionIfNeeded() {
+        this.beatCounter = (this.beatCounter + 1) % this.maxBeats;
+
+        for (const step of this.progressionSteps) {
+            if (this.beatCounter < step.endBeat) {
                 this.settings.scale = step.scale;
                 this.settings.transposition = step.transposition;
                 break;
@@ -292,6 +310,30 @@ class Sequencer {
             this.listeners[event].forEach(callback => callback(data));
         }
     }
+
+    ffw(bars) {
+        if (!this.isPlaying) return;
+        this.clock.fastForward(bars);
+        this.updateSequencerState();
+    }
+
+    rwd(bars) {
+        if (!this.isPlaying) return;
+        this.clock.rewind(bars);
+        this.updateSequencerState();
+    }
+
+    updateSequencerState() {
+        const newPosition = this.clock.getPosition();
+        this.beatCounter = (newPosition.bar * this.settings.timeSignature[0] + newPosition.beat) % this.maxBeats;
+        this.updateProgressionIfNeeded();
+
+        this.tracks.forEach(track => {
+            track.trackScheduler.resyncTrack();
+        });
+
+        this.midi.stopAllActiveNotes();
+    }    
 }
 
 module.exports = Sequencer;
