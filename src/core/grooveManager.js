@@ -1,15 +1,26 @@
 class GrooveManager {
     constructor(initialGroove, initialSwingAmount = 0) {
-        this.groove = initialGroove;
-        this.swingAmount = initialSwingAmount;
+        this.groove = this.validateGroove(initialGroove);
+        this.swingAmount = this.clampPercentage(initialSwingAmount);
+    }
+
+    validateGroove(groove) {
+        return groove.map(step => ({
+            timeOffset: this.clampPercentage(step.timeOffset),
+            velocityOffset: this.clampPercentage(step.velocityOffset)
+        }));
+    }
+
+    clampPercentage(value) {
+        return Math.max(-50, Math.min(50, value));
     }
 
     updateGroove(newGroove) {
-        this.groove = newGroove;
+        this.groove = this.validateGroove(newGroove);
     }
 
     updateSwing(newSwingAmount) {
-        this.swingAmount = newSwingAmount;
+        this.swingAmount = this.clampPercentage(newSwingAmount);
     }
 
     getGrooveStep(globalStep) {
@@ -22,20 +33,21 @@ class GrooveManager {
     applyGrooveAndSwing(noteStartTime, noteSettings, globalStep, duration) {
         const grooveStep = this.getGrooveStep(globalStep);
         
-        let timeOffset = 0;
-        let velocityOffset = 0;
+        let timeOffsetPercentage = 0;
+        let velocityOffsetPercentage = 0;
 
         if (grooveStep) {
             // Use groove if available
-            timeOffset = grooveStep.timeOffset;
-            velocityOffset = grooveStep.velocityOffset;
+            timeOffsetPercentage = grooveStep.timeOffset;
+            velocityOffsetPercentage = grooveStep.velocityOffset;
         } else {
             // Use swing if no groove is defined
-            timeOffset = this.calculateSwingOffset(globalStep, duration);
+            timeOffsetPercentage = this.calculateSwingOffsetPercentage(globalStep);
         }
 
+        const timeOffset = (duration * timeOffsetPercentage) / 100;
         const adjustedTime = noteStartTime + timeOffset;
-        const adjustedVelocity = this.calculateAdjustedVelocity(noteSettings, velocityOffset);
+        const adjustedVelocity = this.calculateAdjustedVelocity(noteSettings, velocityOffsetPercentage);
 
         // Adjust duration based on time offset
         const adjustedDuration = duration - timeOffset;
@@ -47,18 +59,19 @@ class GrooveManager {
         };
     }
 
-    calculateSwingOffset(globalStep, duration) {
+    calculateSwingOffsetPercentage(globalStep) {
         // Apply swing to even-numbered steps (0-indexed)
         if (globalStep % 2 === 1) {
-            return (duration * this.swingAmount) / 100;
+            return this.swingAmount;
         }
         return 0;
     }
 
-    calculateAdjustedVelocity(noteSettings, velocityOffset) {
+    calculateAdjustedVelocity(noteSettings, velocityOffsetPercentage) {
         const { velocity, velocitySpan } = noteSettings;
         const baseVelocity = velocity + Math.floor(Math.random() * (velocitySpan + 1));
-        return Math.max(1, Math.min(127, Math.round(baseVelocity + velocityOffset)));
+        const velocityOffset = Math.round((baseVelocity * velocityOffsetPercentage) / 100);
+        return Math.max(1, Math.min(127, baseVelocity + velocityOffset));
     }
 }
 

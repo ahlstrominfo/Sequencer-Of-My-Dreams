@@ -126,7 +126,7 @@ class UIGroove extends UIBase {
     updateTrackSettingsAndReload(trackSettings){
         const track = this.sequencer.tracks[this.terminalUI.currentTrack];
         track.updateSettings(trackSettings);
-        this.openView();
+        // this.openView();
     }
 
     render() {
