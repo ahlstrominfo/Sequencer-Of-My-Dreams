@@ -14,7 +14,6 @@ class SongClock {
         this.onClockTickCallback = null;
         this.onQuarterNoteCallback = null;
         this.onBarChangeCallback = null;
-        this.onBeatChangeCallback = null;
     }
 
     calculateMidiClockInterval(bpm) {
@@ -63,10 +62,6 @@ class SongClock {
 
     setOnBarChangeCallback(callback) {
         this.onBarChangeCallback = callback;
-    }
-
-    setOnBeatChangeCallback(callback) {
-        this.onBeatChangeCallback = callback;
     }
 
     getPosition() {
@@ -146,10 +141,6 @@ class SongClock {
             if (beat === 0 && this.clockTick % 24 === 0 && this.onBarChangeCallback) {
                 this.onBarChangeCallback(bar);
             }
-
-            if (this.clockTick % 24 === 0 && this.setOnBeatChangeCallback) {
-                this.onBeatChangeCallback(beat);
-            }
         }
 
         this.lastClockTime = currentTime;
@@ -190,9 +181,6 @@ class SongClock {
 
         if (this.onBarChangeCallback) {
             this.onBarChangeCallback(position.bar);
-        }
-        if (this.onBeatChangeCallback) {
-            this.onBeatChangeCallback(position.beat);
         }
     }
 }
