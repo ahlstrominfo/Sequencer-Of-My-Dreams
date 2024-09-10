@@ -1,6 +1,7 @@
 const MidiCommunicator = require('./midiCommunicator');
 const SequenceManager = require('./sequenceManager');
 const SongClock = require('./songClock');
+const SequenceScheduler = require('./sequenceScheduler');
 const { Track } = require('./track');
 const { conformNoteToScale, SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
@@ -27,6 +28,7 @@ class Sequencer {
         this.midi = new MidiCommunicator(this);
         this.clock = new SongClock(bpm, ppq, this.settings.timeSignature);
         this.sequenceManager = new SequenceManager(this);
+        this.scheduler = new SequenceScheduler(this);
 
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
         this.tickDuration = this.calculateTickDuration();
@@ -215,6 +217,8 @@ class Sequencer {
 
     scheduleLoop() {
         if (!this.isPlaying) return;
+
+        this.scheduler.processEvents();
 
         const currentTime = this.clock.getCurrentTime();
         const lookAheadEnd = currentTime + this.scheduleAheadTime;
