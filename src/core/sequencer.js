@@ -245,29 +245,11 @@ class Sequencer {
             });
         });
     }
-
-    getCurrentScaleName() {
-        return SCALE_NAMES[this.settings.scale];
-    }
-
-    getCurrentTransposition() {
-        return this.settings.transposition;
-    }
-
-    conformNoteToScale(note) {
-        return conformNoteToScale(
-            note,
-            this.settings.key,
-            this.getCurrentScale(),
-            this.getCurrentTransposition()
-        );
-    }
-
     queueNoteEvent(event, trackId) {
         event.trackId = trackId;
         this.midi.queueNoteEvent(event);
     }
-
+    
     gracefulShutdown() {
         this.stop();
         this.midi.close();

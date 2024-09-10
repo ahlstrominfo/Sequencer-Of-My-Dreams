@@ -1,3 +1,6 @@
+const MIDI_MAX_VELOCITY = 127;
+const MIDI_MIN_VELOCITY = 0;
+
 class GrooveManager {
     constructor(initialGroove, initialSwingAmount = 0) {
         this.groove = this.validateGroove(initialGroove);
@@ -30,7 +33,7 @@ class GrooveManager {
         return this.groove[globalStep % this.groove.length];
     }
 
-    applyGrooveAndSwing(noteStartTime, noteSettings, globalStep, duration) {
+    applyGrooveAndSwing(noteStartTime, noteSettings, globalStep, duration, trackVolume) {
         const grooveStep = this.getGrooveStep(globalStep);
         
         let timeOffsetPercentage = 0;
@@ -47,10 +50,13 @@ class GrooveManager {
 
         const timeOffset = (duration * timeOffsetPercentage) / 100;
         const adjustedTime = noteStartTime + timeOffset;
-        const adjustedVelocity = this.calculateAdjustedVelocity(noteSettings, velocityOffsetPercentage);
+        let adjustedVelocity = this.calculateAdjustedVelocity(noteSettings, velocityOffsetPercentage);
 
         // Adjust duration based on time offset
         const adjustedDuration = duration - timeOffset;
+
+        // Adjust velocity based on track volume
+        adjustedVelocity = Math.max(MIDI_MIN_VELOCITY, Math.min(MIDI_MAX_VELOCITY, adjustedVelocity * (trackVolume / 100)));
 
         return { 
             time: adjustedTime, 

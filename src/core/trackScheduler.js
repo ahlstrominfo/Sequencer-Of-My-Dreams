@@ -1,8 +1,8 @@
 const GrooveManager = require('./grooveManager');
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
 const { PLAY_ORDER } = require('../utils/utils');
-const { generateChord, conformNoteToScale } = require('../utils/scales');
-const { ARP_MODES, getArpeggiatedNotes} = require('../utils/arps');
+const { generateChord, conformNoteToScale, SCALES} = require('../utils/scales');
+const { ARP_MODES, getArpeggiatedNotes, generateArpeggioPattern} = require('../utils/arps');
 
 // Constants
 const MIDI_MAX_VELOCITY = 127;
@@ -169,9 +169,9 @@ class TrackScheduler {
 
             if ((this.track.settings.arpMode === ARP_MODES.OFF && noteSettings.arpMode === ARP_MODES.USE_TRACK)
                 || noteSettings.arpMode === ARP_MODES.OFF) {
-                this.scheduleChord(chord, noteStartTime, noteDuration, globalStep, noteSettings, noteIndex);
+                this.scheduleChord(noteStartTime, noteDuration, globalStep, noteSettings, noteIndex);
             } else {
-                this.scheduleArpeggio(chord, noteStartTime, noteDuration, globalStep, noteSettings, noteIndex);
+                this.scheduleArpeggio(noteStartTime, noteDuration, globalStep, noteSettings, noteIndex);
             }
         }
 
@@ -210,27 +210,72 @@ class TrackScheduler {
         return { noteStartTime: appliedGrooveAndSwing.time, noteDuration: appliedGrooveAndSwing.duration };
     }
 
-    scheduleChord(chord, time, duration, globalStep, noteSettings, noteIndex) {
+    pitchForProgression(pitch, adjustedTime) {
+        const progressionInfo = this.getProgressionInfo(adjustedTime);
+        return conformNoteToScale(
+            pitch, 
+            progressionInfo.key,
+            progressionInfo.scale,
+            progressionInfo.transposition
+        ); 
+    }
+
+    chordMakerForProgression(noteSettings, adjustedTime) {
+        const progressionInfo = this.getProgressionInfo(adjustedTime);
+        return generateChord(noteSettings.rootNote, {
+            numberOfNotes: noteSettings.numberOfNotes,
+            inversion: noteSettings.inversion,
+            spread: noteSettings.spread,
+            scaleType: this.track.settings.conformNotes ? progressionInfo.scale : 13,
+            pitchSpan: noteSettings.pitchSpan
+        });
+    }
+
+    scheduleChord(time, duration, globalStep, noteSettings, noteIndex) {
         const shouldPlay = this.checkNoteSeriesCounter(noteIndex);
 
         if (shouldPlay) {
-            const { time: adjustedTime, velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
+            const { time: adjustedTime } = this.grooveManager.applyGrooveAndSwing(
                 time,
                 noteSettings,
                 globalStep,
                 duration
             );
 
-            chord.forEach(pitch => {
-                if (Math.random() * 100 < noteSettings.probability) {
-                    this.queueNoteEvents(pitch, adjustedTime, duration, this.track.settings.channel - 1, adjustedVelocity);
-                }
-            });
+            if (this.track.settings.isActive) {
+
+                let chord = this.chordMakerForProgression(noteSettings, adjustedTime);
+
+                chord.forEach(pitch => {
+                    if (this.track.settings.conformNotes) {
+                        pitch = this.pitchForProgression(pitch, adjustedTime);
+                    }             
+                    if (Math.random() * 100 < noteSettings.probability) {
+                        const { time: adjustedTime, velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
+                            time,
+                            noteSettings,
+                            globalStep,
+                            duration,
+                            this.track.settings.volume
+                        );
+                        
+                        this.sequencer.midi.queueNoteEvent({
+                            time: adjustedTime,
+                            type: 'note',
+                            duration: duration,
+                            message: { channel: this.track.settings.channel - 1, note: pitch, velocity: adjustedVelocity },
+                            trackId: this.track.trackId
+                        });
+                
+                        this.updateActiveNotes(pitch, adjustedTime, duration);
+                    }
+                });
+            }
         }
-        this.advanceNoteSeriesCounter(noteIndex);
+        this.advanceNoteSeriesCounter(noteIndex);        
     }
 
-    scheduleArpeggio(chord, time, duration, globalStep, noteSettings, noteIndex) {
+    scheduleArpeggio(time, duration, globalStep, noteSettings, noteIndex) {
         const { arpMode, channel, wonkyArp } = this.track.settings;
         let playMultiplier = this.track.settings.playMultiplier;
 
@@ -242,40 +287,96 @@ class TrackScheduler {
         const baseStepDuration = this.getStepDuration();
         let arpStepDuration = baseStepDuration / playMultiplier;
         let nrSteps = Math.floor(duration / arpStepDuration);
-        const chordToArp = getArpeggiatedNotes(chord, ARP_MODES.USE_TRACK === noteSettings.arpMode ? arpMode : noteSettings.arpMode);
+        const arpPattern = generateArpeggioPattern(
+            noteSettings.numberOfNotes, 
+            ARP_MODES.USE_TRACK === noteSettings.arpMode ? arpMode : noteSettings.arpMode
+        );
 
         if (wonkyArp || noteSettings.wonkyArp) {
-            nrSteps = chordToArp.length * playMultiplier;
+            nrSteps = arpPattern.length * playMultiplier;
             arpStepDuration = duration / nrSteps;   
         }
 
         for (let i = 0; i < nrSteps; i++) {
-            const shouldPlay = this.checkNoteSeriesCounter(noteIndex);
+            const shouldPlay = this.checkNoteSeriesCounter(noteIndex)
+                && Math.random() * 100 < noteSettings.probability
+                && this.track.settings.isActive;
 
-            if (shouldPlay && Math.random() * 100 < noteSettings.probability) {
+            if (shouldPlay) {
                 const noteStartTime = time + (i * arpStepDuration);
                 const { time: adjustedTime, velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
                     noteStartTime,
                     noteSettings,
                     globalStep + i,
-                    arpStepDuration
+                    arpStepDuration,
+                    this.track.settings.volume
                 );
-    
-                const noteDuration = arpStepDuration - this.sequencer.tickDuration;
-    
+                let chord = this.chordMakerForProgression(noteSettings, adjustedTime);
+
+
+                const sendChords = [];
                 if (arpMode === ARP_MODES.CHORD) {
-                    // For CHORD mode, play all notes in the chord
-                    chordToArp[0].forEach(pitch => {
-                        this.queueNoteEvents(pitch, adjustedTime, noteDuration, channel - 1, adjustedVelocity);
+                    chord.forEach(pitch => {
+                        const { velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
+                            time,
+                            noteSettings,
+                            globalStep,
+                            duration,
+                            this.track.settings.volume
+                        );
+
+                        if (this.track.settings.conformNotes) {
+                            pitch = this.pitchForProgression(pitch, adjustedTime);
+                        }             
+                        const noteDuration = arpStepDuration - this.sequencer.tickDuration;        
+    
+                        sendChords.push({
+                            time: adjustedTime,
+                            type: 'note',
+                            duration: noteDuration,
+                            message: { 
+                                channel: channel - 1, 
+                                note: pitch, 
+                                velocity: adjustedVelocity
+                            },
+                            trackId: this.track.trackId
+                        });
+        
+                        this.updateActiveNotes(pitch, adjustedTime, duration);                
                     });
                 } else {
-                    // For other modes, play a single note
-                    const pitch = chordToArp[i % chordToArp.length];
-                    this.queueNoteEvents(pitch, adjustedTime, noteDuration, channel - 1, adjustedVelocity);
+                    const positionInNotes = arpPattern[i % arpPattern.length];
+                    let pitch = chord[positionInNotes];
+    
+                    if (this.track.settings.conformNotes) {
+                        pitch = this.pitchForProgression(pitch, adjustedTime);
+                    }             
+    
+                    const noteDuration = arpStepDuration - this.sequencer.tickDuration;
+    
+                    sendChords.push({
+                        time: adjustedTime,
+                        type: 'note',
+                        duration: noteDuration,
+                        message: { 
+                            channel: channel - 1, 
+                            note: pitch, 
+                            velocity: adjustedVelocity
+                        },
+                        trackId: this.track.trackId
+                    });
+
+                    this.updateActiveNotes(pitch, adjustedTime, duration);               
                 }
+
+                sendChords.forEach(chord => {
+                    this.sequencer.midi.queueNoteEvent(chord);
+                    this.updateActiveNotes(chord.message.pitch, chord.time, chord.duration);      
+                });
+
             }
             this.advanceNoteSeriesCounter(noteIndex);
-        }
+        }        
     }
 
     requestResync() {
@@ -290,31 +391,6 @@ class TrackScheduler {
     checkNoteSeriesCounter(noteIndex) {
         const noteSettings = this.track.settings.noteSeries[noteIndex];
         return this.noteSeriesCounter[noteIndex] === noteSettings.aValue;
-    }
-
-    queueNoteEvents(pitch, startTime, duration, channel, velocity) {
-        if (!this.track.settings.isActive) return;
-
-        velocity = Math.max(MIDI_MIN_VELOCITY, Math.min(MIDI_MAX_VELOCITY, velocity * (this.track.settings.volume / 100)));
-
-        if (this.track.settings.conformNotes) {
-            const progressionInfo = this.getProgressionInfo(startTime);
-            pitch = conformNoteToScale(
-                pitch, 
-                this.sequencer.settings.key,
-                progressionInfo.scale,
-                progressionInfo.transposition);
-        }
-
-        this.sequencer.queueNoteEvent({
-            time: startTime,
-            type: 'note',
-            duration: duration,
-            conformNotes: this.track.settings.conformNotes,
-            message: { channel, note: pitch, velocity }
-        }, this.track.trackId);
-
-        this.updateActiveNotes(pitch, startTime, duration);
     }
 
     updateActiveNotes(pitch, startTime, duration) {

@@ -47,23 +47,29 @@ function generateChord(rootNote, options = {}) {
         numberOfNotes = 3,
         inversion = 0,
         spread = 0,
-        scaleType = 0
+        scaleType = 0,
+        pitchSpan = 0
     } = options;
 
     const scale = SCALES[scaleType];
     
-    // Generate chord intervals based on scale
-    const chordIntervals = Array.from({length: numberOfNotes}, (_, i) => scale[i * 2 % scale.length]);
+    // Generate chord intervals based on scale, without skipping
+    const chordIntervals = Array.from({length: numberOfNotes}, (_, i) => scale[i % scale.length]);
 
     // Generate chord
     let chord = chordIntervals.map(interval => rootNote + interval);
 
-    // Apply inversion
-    chord = invertChord(chord, inversion);
-
-    // Apply spread
+    // Apply spread before inversion
     if (spread !== 0) {
         chord = applySpread(chord, spread);
+    }
+
+    // Apply inversion after spread
+    chord = invertChord(chord, inversion);
+
+    // Apply pitchSpan
+    if (pitchSpan > 0) {
+        chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
     }
 
     return chord;
