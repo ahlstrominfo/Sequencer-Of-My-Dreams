@@ -14,6 +14,7 @@ class SongClock {
         this.onClockTickCallback = null;
         this.onQuarterNoteCallback = null;
         this.onBarChangeCallback = null;
+        this.lastQuarterNoteTime = 0n;
     }
 
     calculateMidiClockInterval(bpm) {
@@ -23,10 +24,18 @@ class SongClock {
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
-            this.startTime = hrtime.bigint();
-            this.lastClockTime = this.startTime;
+            const now = hrtime.bigint();
+            this.startTime = now;
+            this.lastClockTime = now;
+            this.lastQuarterNoteTime = now;
             this.clockAccumulator = 0n;
             this.clockTick = 0;
+            
+            // Trigger the first quarter note immediately
+            if (this.onQuarterNoteCallback) {
+                this.onQuarterNoteCallback(this.getCurrentTime(), this.bpm, 0);
+            }
+            
             this.clockLoop();
         }
     }
@@ -114,37 +123,43 @@ class SongClock {
 
     clockLoop() {
         if (!this.isRunning) return;
-
+    
         const currentTime = hrtime.bigint();
         const elapsed = currentTime - this.lastClockTime;
         this.clockAccumulator += elapsed;
-
+    
         while (this.clockAccumulator >= this.midiClockInterval) {
             this.clockTick++;
             this.clockAccumulator -= this.midiClockInterval;
-
+    
             if (this.onClockTickCallback) {
                 this.onClockTickCallback(this.clockTick);
             }
-
+    
             // Every 24 clock ticks is a quarter note (MIDI standard)
             if (this.clockTick % 24 === 0) {
-                const actualInterval = Number(currentTime - this.lastClockTime) / 24 / 1e6;
-                const drift = actualInterval - Number(this.midiClockInterval) / 1e6;
+                const actualInterval = Number(currentTime - this.lastQuarterNoteTime) / 1e6;
+                const expectedInterval = 60000 / this.bpm;
+                const drift = actualInterval - expectedInterval;
+                
+                //console.log(`Quarter note at tick ${this.clockTick}. Actual interval: ${actualInterval.toFixed(2)}ms, Expected: ${expectedInterval.toFixed(2)}ms, Drift: ${drift.toFixed(2)}ms`);
+                
                 if (this.onQuarterNoteCallback) {
-                    this.onQuarterNoteCallback(this.getCurrentTime(), (60000 / (actualInterval * 24)), drift);
+                    this.onQuarterNoteCallback(this.getCurrentTime(), this.bpm, drift);
                 }
+                
+                this.lastQuarterNoteTime = currentTime;
             }
-
+    
             // Check for bar change
             const { bar, beat } = this.getPosition();
             if (beat === 0 && this.clockTick % 24 === 0 && this.onBarChangeCallback) {
                 this.onBarChangeCallback(bar);
             }
         }
-
+    
         this.lastClockTime = currentTime;
-
+    
         // Schedule next clock check
         setImmediate(() => this.clockLoop());
     }

@@ -47,11 +47,12 @@ class Sequencer {
     }
 
     setupClockCallbacks() {
-        
+
         this.clock.setOnClockTickCallback(() => {
             this.midi.sendClock();
         });
-        this.clock.setOnBarChangeCallback(() => {
+    
+        this.clock.setOnBarChangeCallback(() => {      
             if(this.loadActiveStates) {
                 this.setActiveState();
                 this.loadActiveStates = false;
@@ -76,7 +77,7 @@ class Sequencer {
     start() {
         if (!this.isPlaying) {
             this.isPlaying = true;
-
+    
             // Pre-calculate initial events
             const initialTime = this.clock.getCurrentTime();
             const initialLookAhead = initialTime + this.scheduleAheadTime;
@@ -84,7 +85,7 @@ class Sequencer {
                 track.trackScheduler.resyncTrack();
                 track.trackScheduler.scheduleEvents(initialLookAhead);
             });
-
+    
             // Start MIDI and clock
             this.midi.sendStart();
             this.clock.start();
@@ -93,6 +94,7 @@ class Sequencer {
             this.scheduleLoop();
         }
     }
+    
 
     stop() {
         if (this.isPlaying) {
