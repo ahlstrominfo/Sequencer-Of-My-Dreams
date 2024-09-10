@@ -1,5 +1,5 @@
 const UIBase = require("./uiBase");
-const { SCALE_NAMES } = require('../utils/scales');
+const { SCALE_NAMES, KEYS } = require('../utils/scales');
 
 
 class UIProgression extends UIBase {
@@ -46,7 +46,17 @@ class UIProgression extends UIBase {
                             updatedProgressions[progressionIndex] = [...progression];
                             this.sequencer.updateSettings({ progressions: updatedProgressions });
                         }
-                    },                
+                    },
+                    {
+                        name: 'Key',
+                        value: () => KEYS[chord.key],
+                        handle: (delta) => {
+                            chord.key = chord.key + delta;
+                            const updatedProgressions = [...this.sequencer.settings.progressions];
+                            updatedProgressions[progressionIndex] = [...progression];
+                            this.sequencer.updateSettings({ progressions: updatedProgressions });
+                        }
+                    },
                     {
                         name: 'Scale',
                         value: () => SCALE_NAMES[chord.scale],

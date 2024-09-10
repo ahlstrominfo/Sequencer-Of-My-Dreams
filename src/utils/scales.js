@@ -1,5 +1,9 @@
 const scalesData = require('../../data/scales.json');
 
+const KEYS = [
+    'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'
+];
+
 const SCALES = {};
 const SCALE_NAMES = {};
 
@@ -91,6 +95,7 @@ function scaleNumber(minValue, maxValue, minScale, maxScale, value) {
 }
 
 module.exports = {
+    KEYS,
     SCALES,
     SCALE_NAMES,
     scaleNumber,

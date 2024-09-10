@@ -1,4 +1,5 @@
 const UIBase = require("./uiBase");
+const { KEYS } = require('../utils/scales');
 
 class UISequencerSettings extends UIBase {
     constructor(terminalUI, sequencer) {

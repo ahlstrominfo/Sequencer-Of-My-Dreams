@@ -2,7 +2,7 @@ const MidiCommunicator = require('./midiCommunicator');
 const SequenceManager = require('./sequenceManager');
 const SongClock = require('./songClock');
 const { Track } = require('./track');
-const { conformNoteToScale, SCALE_NAMES } = require('../utils/scales');
+const { conformNoteToScale, SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
 
 class Sequencer {
@@ -127,7 +127,11 @@ class Sequencer {
     updateSettings(newSettings, shouldSaveToTmp = true) {
         const oldActiveState = this.settings.currentActiveState;
         const oldBpm = this.settings.bpm;
-        const oldTimeSignature = this.settings.timeSignature;        
+        const oldTimeSignature = this.settings.timeSignature;   
+        
+        if ('key' in newSettings) {
+            newSettings.key = Math.max(0, Math.min(KEYS.length - 1, newSettings.key));
+        }
 
         if ('progression' in newSettings) {
             if (newSettings['progressions'] === undefined) { // this is for the old format
@@ -152,6 +156,10 @@ class Sequencer {
                     }
     
                     step.scale = Math.max(0, Math.min(Object.keys(SCALE_NAMES).length, step.scale));
+                    if (step.key === null) {
+                        step.key = 0;
+                    }
+                    step.key = Math.max(0, Math.min(KEYS.length - 1, step.key));
                     step.transposition = Math.max(-24, Math.min(24, step.transposition));
                 });
             });
@@ -379,7 +387,8 @@ class Sequencer {
                     progressionIndex: this.settings.currentProgressionIndex,
                     stepIndex: i,
                     scale: step.scale,
-                    transposition: step.transposition
+                    transposition: step.transposition,
+                    key: step.key
                 };
             }
         }
