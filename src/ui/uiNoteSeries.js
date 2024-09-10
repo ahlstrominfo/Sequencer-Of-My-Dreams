@@ -16,7 +16,11 @@ class UINoteSeries extends UITableView {
                     name: 'Note',
                     value: () => series.rootNote,
                     handle: (delta, step) => {
-                        series.rootNote = series.rootNote + delta * step;
+                        if (step === 1) {
+                            series.rootNote = series.rootNote + delta; // move in semitone
+                        } else {
+                            series.rootNote = series.rootNote + (delta * 12); // move in octave
+                        }
                         this.updateTrackSettingsAndReload({
                             noteSeries: track.settings.noteSeries
                         });
