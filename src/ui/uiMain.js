@@ -179,14 +179,36 @@ class UIMain extends UIBase {
             };
         });
 
+        this.progressionChangeNumber = null;
+        this.progressionChangeBlinking = false;
+        this.progressionChangeBlinkingState = true;
         activeStateRows.push({
             value: () => {
-                return this.sequencer.settings.currentProgressionIndex;
+                this.progressionChangeBlinkingState = !this.progressionChangeBlinkingState;
+                if (this.progressionChangeBlinking && this.progressionChangeBlinkingState) {
+                    return ' ';
+                }
+                if (this.progressionChangeNumber === null) {
+                    this.progressionChangeNumber = this.sequencer.settings.currentProgressionIndex;
+                    return this.sequencer.settings.currentProgressionIndex;
+                }
+                return this.progressionChangeNumber;
             },
             handle: (delta) => {
-                const currentProgressionIndex = this.sequencer.settings.currentProgressionIndex + delta;
-                this.sequencer.updateSettings({ currentProgressionIndex });
+                this.progressionChangeNumber = this.progressionChangeNumber + delta;
+                this.progressionChangeNumber = Math.max(0, Math.min(this.progressionChangeNumber, this.sequencer.settings.progressions.length -1)); 
             },
+            enter: () => {
+                if (this.isEditingField) {
+                    const newProgression = this.progressionChangeNumber;
+                    this.progressionChangeBlinking = true;
+                    this.sequencer.scheduler.scheduleNextBar(() => {
+                        this.sequencer.updateSettings({ currentProgressionIndex: newProgression });
+                        this.progressionChangeBlinking = false;
+                    });
+                }
+                this.isEditingField = !this.isEditingField;
+            }
         });
 
         this.rows.push({
