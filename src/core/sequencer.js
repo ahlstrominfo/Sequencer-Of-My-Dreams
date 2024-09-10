@@ -125,8 +125,10 @@ class Sequencer {
         const oldBpm = this.settings.bpm;
         const oldTimeSignature = this.settings.timeSignature;   
         
-        if ('key' in newSettings) {
+        if (newSettings['key'] !== undefined) {
             newSettings.key = Math.max(0, Math.min(KEYS.length - 1, newSettings.key));
+        } else if (newSettings['key'] === null) {
+            newSettings.key = 0;
         }
 
         if ('progression' in newSettings) {
@@ -284,6 +286,12 @@ class Sequencer {
         this.settings.currentActiveState = 0;
         this.settings.activeStates = Array(16).fill().map(() => Array(16).fill(true));
         this.settings.bpm = 120;
+        this.settings.progressions = [
+            [
+                { bars: 1, beats: 0, scale: 0, transposition: 0, key: 0 }
+            ]
+        ];
+        this.settings.currentProgressionIndex = 0;    
     }
 
     copySettingsToTrack(fromTrackIndex, toTrackIndex) {
@@ -344,10 +352,22 @@ class Sequencer {
     }
 
     getProgressionAtPosition(bar, beat) {
+
+        const firstEvent = this.scheduler.scheduledEvents
+            .filter(event => (event.bar === bar && event.beat <= beat));
+            // .forEach(event => {
+            //     this.logger.log(`Event at ${event.bar}:${event.beat}`);
+            // });
+
+        let currentProgressionIndex = this.settings.currentProgressionIndex;;
+        if (firstEvent.length > 0) {
+            currentProgressionIndex = firstEvent[firstEvent.length - 1].data.progressionIndex;
+        }
+
         const beatsPerBar = this.settings.timeSignature[0];
         let totalBeats = (bar * beatsPerBar) + beat;
         
-        const currentProgression = this.settings.progressions[this.settings.currentProgressionIndex];
+        const currentProgression = this.settings.progressions[currentProgressionIndex];
         let totalProgressionBeats = 0;
         
         // Calculate total beats in the progression

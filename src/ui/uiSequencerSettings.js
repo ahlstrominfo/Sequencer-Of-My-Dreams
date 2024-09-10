@@ -99,7 +99,9 @@ class UISequencerSettings extends UIBase {
     }
 
     loadFromTmp() {
-        this.sequenceManager.loadFromTmp();
+        if(!this.sequenceManager.loadFromTmp()) {
+            this.sequencer.cleanSequencer();
+        }
     }  
 
     handleEscape() {

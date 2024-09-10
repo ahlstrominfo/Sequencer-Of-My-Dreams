@@ -205,6 +205,9 @@ class UIMain extends UIBase {
                     this.sequencer.scheduler.scheduleNextBar(() => {
                         this.sequencer.updateSettings({ currentProgressionIndex: newProgression });
                         this.progressionChangeBlinking = false;
+                    }, {
+                        type: 'progressionChange',
+                        progressionIndex : newProgression
                     });
                 }
                 this.isEditingField = !this.isEditingField;

@@ -1,25 +1,17 @@
-// src/core/sequenceScheduler.js
-
 class SequenceScheduler {
     constructor(sequencer) {
         this.sequencer = sequencer;
         this.scheduledEvents = [];
     }
 
-    scheduleEvent(bar, beat, callback) {
-        this.scheduledEvents.push({ bar, beat, callback });
+    scheduleEvent(bar, beat, callback, data = {}) {
+        this.scheduledEvents.push({ bar, beat, callback, data});
         this.sortEvents();
     }
 
-    scheduleSettingsChange(settings, bar, beat) {
-        this.scheduleEvent(bar, beat, () => {
-            this.sequencer.updateSettings(settings);
-        });
-    }
-
-    scheduleNextBar(callback) {
+    scheduleNextBar(callback, data = {}) {
         const nextBar = this.sequencer.clock.getPosition().bar + 1;
-        this.scheduleEvent(nextBar, 0, callback);
+        this.scheduleEvent(nextBar, 0, callback, data);
     }
 
     processEvents() {

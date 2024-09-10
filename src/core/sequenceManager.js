@@ -109,7 +109,9 @@ class SequenceManager {
                 this.sequencer.updateTrackSettings(index, trackSettings);
             });
             this.currentFileName = sequenceData.currentFileName;
+            return true;
         }
+        return false;
     }
 }
 
