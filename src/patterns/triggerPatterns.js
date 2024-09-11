@@ -1,3 +1,5 @@
+// triggerPatterns.js
+
 const TRIGGER_TYPES = {
     INIT: 0,
     BINARY: 1,
@@ -12,135 +14,128 @@ const TRIGGER_TYPE_NAMES = {
     [TRIGGER_TYPES.STEP]: 'Step',
 };
 
-class InitTriggerPattern {
-    constructor(steps) {
-        this.steps = steps;
-        this.pattern = [];
-    }
-
-    shouldTrigger() {
-        return false;
-    }
-
-    get length() {
-        return 0;
-    }
-}
-
-class BinaryTriggerPattern {
+class TriggerPattern {
     constructor(pattern) {
         this.pattern = pattern;
+        this.triggerSteps = [];
+        this.durations = [];
+        this.precalculateDurations();
     }
 
     shouldTrigger(step) {
         return this.pattern[step % this.pattern.length] === 1;
     }
 
-    static patternGenerate(numbers) {
+    get length() {
+        return this.pattern.length;
+    }
+
+    applyResyncInterval(resyncInterval) {
+        if (resyncInterval && resyncInterval > 0 && this.pattern.length > 0) {
+            let newPattern = [];
+            while (newPattern.length < resyncInterval) {
+                newPattern = newPattern.concat(this.pattern);
+            }
+            this.pattern = newPattern.slice(0, resyncInterval);
+            this.precalculateDurations();
+        }
+    }
+
+    precalculateDurations() {
+        this.triggerSteps = [];
+        this.durations = [];
+        let lastTriggerStep = -1;
+
+        for (let i = 0; i < this.pattern.length; i++) {
+            if (this.shouldTrigger(i)) {
+                if (lastTriggerStep !== -1) {
+                    this.durations.push(i - lastTriggerStep);
+                }
+                this.triggerSteps.push(i);
+                lastTriggerStep = i;
+            }
+        }
+
+        // Handle the wrap-around case
+        if (lastTriggerStep !== -1) {
+            this.durations.push(this.pattern.length + this.triggerSteps[0] - lastTriggerStep);
+        }
+    }
+}
+
+class InitTriggerPattern extends TriggerPattern {
+    constructor(steps) {
+        super(new Array(steps).fill(0));
+    }
+}
+
+class BinaryTriggerPattern extends TriggerPattern {
+    static fromNumbers(numbers) {
         const pattern = new Array(numbers.length * 4).fill(0);
         numbers.forEach((num, index) => {
             const binary = num.toString(2).padStart(4, '0');
             binary.split('').forEach((bit, bitIndex) => {
-                pattern[index * 4 + bitIndex] = bit === '1' ? 1 : null;
+                pattern[index * 4 + bitIndex] = bit === '1' ? 1 : 0;
             });
         });
-        return pattern;
-    }
-
-    static fromNumbers(numbers) {
-        return new BinaryTriggerPattern(this.patternGenerate(numbers));
-    }
-
-    get length() {
-        return this.pattern.length;
+        return new BinaryTriggerPattern(pattern);
     }
 }
 
-class EuclideanTriggerPattern {
+class EuclideanTriggerPattern extends TriggerPattern {
     constructor(length, hits, shift = 0) {
-        this.pattern = this.generatePattern(length, hits, shift);
-        this.length = length;
-    }
-
-    generatePattern(length, hits, shift) {
         const pattern = new Array(length).fill(0);
         for (let i = 0; i < hits; i++) {
             pattern[Math.floor(i * length / hits)] = 1;
         }
-        return pattern.slice(shift).concat(pattern.slice(0, shift));
-    }
-
-    shouldTrigger(step) {
-        return this.pattern[step % this.length] === 1;
+        super(pattern.slice(shift).concat(pattern.slice(0, shift)));
     }
 }
 
-class StepTriggerPattern {
+class StepTriggerPattern extends TriggerPattern {
     constructor(steps) {
-        this.pattern = new Array(16).fill(0);
-        steps.forEach(step => this.pattern[step] = 1);
-    }
-
-    shouldTrigger(step) {
-        return this.pattern[step % this.pattern.length] === 1;
-    }
-
-    get length() {
-        return this.pattern.length;
+        const pattern = new Array(16).fill(0);
+        steps.forEach(step => pattern[step] = 1);
+        super(pattern);
     }
 }
 
-const triggerPatternFromSettings = (settings) => {
-    const { triggerType, triggerSettings, steps, resyncInterval } = settings;
-
-    let triggerClass = null;
-    switch (triggerType) {
+function createTriggerPattern(type, settings) {
+    switch (type) {
         case TRIGGER_TYPES.BINARY:
-            triggerClass = BinaryTriggerPattern.fromNumbers(triggerSettings.numbers || []);
-            break;
+            return BinaryTriggerPattern.fromNumbers(settings.numbers || []);
         case TRIGGER_TYPES.EUCLIDEAN:
-            triggerClass = new EuclideanTriggerPattern(
-                triggerSettings.length || steps,
-                triggerSettings.hits || 4,
-                triggerSettings.shift || 0
+            return new EuclideanTriggerPattern(
+                settings.length || 16,
+                settings.hits || 4,
+                settings.shift || 0
             );
-            break;
         case TRIGGER_TYPES.STEP:
-            triggerClass = new StepTriggerPattern(triggerSettings.steps || []);
-            break;
+            return new StepTriggerPattern(settings.steps || []);
+        case TRIGGER_TYPES.INIT:
         default:
-            triggerClass = new InitTriggerPattern(steps);
+            return new InitTriggerPattern(settings.steps || 16);
     }
+}
 
-    if (resyncInterval && resyncInterval > 0 && triggerClass.pattern.length > 0) {
-        const originalPattern = triggerClass.pattern;
-        let newPattern = [];
-
-        if (resyncInterval > originalPattern.length) {
-            // Repeat the pattern
-            while (newPattern.length < resyncInterval) {
-                newPattern = newPattern.concat(originalPattern);
-            }
-            // Cut if it's now longer than resyncInterval
-            newPattern = newPattern.slice(0, resyncInterval);
-        } else {
-            // Cut the original pattern
-            newPattern = originalPattern.slice(0, resyncInterval);
-        }
-
-        triggerClass.pattern = newPattern;
-        triggerClass.length = newPattern.length;
+function triggerPatternFromSettings(settings) {
+    const { triggerType, triggerSettings, resyncInterval } = settings;
+    
+    const pattern = createTriggerPattern(triggerType, triggerSettings);
+    
+    if (resyncInterval) {
+        pattern.applyResyncInterval(resyncInterval);
     }
+    
+    return pattern;
+}
 
-    return triggerClass;
-};
-
-module.exports = { 
+module.exports = {
+    BinaryTriggerPattern,
+    EuclideanTriggerPattern,
+    InitTriggerPattern,
+    StepTriggerPattern,
     TRIGGER_TYPES,
     TRIGGER_TYPE_NAMES,
-    InitTriggerPattern, 
-    BinaryTriggerPattern, 
-    EuclideanTriggerPattern, 
-    StepTriggerPattern,
     triggerPatternFromSettings
 };

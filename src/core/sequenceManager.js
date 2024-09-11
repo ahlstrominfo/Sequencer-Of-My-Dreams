@@ -44,13 +44,6 @@ class SequenceManager {
         return this.saveSequence(true);
     }
 
-    updateTmpWithCurrentFileName() {
-        const tmpFilePath = path.join(this.songsDirectory, this.tmpFileName);
-        const tmpData = {
-            currentFileName: this.currentFileName
-        };
-        fs.writeFileSync(tmpFilePath, JSON.stringify(tmpData, null, 2));
-    }
 
     loadSequence(fileName) {
         const filePath = path.join(this.songsDirectory, fileName);
@@ -58,13 +51,14 @@ class SequenceManager {
         const sequenceData = JSON.parse(fileContent);
 
         this.sequencer.midi.stopAllActiveNotes();
-        this.sequencer.updateSettings(sequenceData.settings);
         sequenceData.tracks.forEach((trackSettings, index) => {
             this.sequencer.updateTrackSettings(index, trackSettings);
         });
+        this.sequencer.updateSettings(sequenceData.settings, true);
+
 
         this.currentFileName = fileName;
-        this.updateTmpWithCurrentFileName();
+        // this.saveToTmp();
     }
 
     getAvailableSequences() {
@@ -86,7 +80,7 @@ class SequenceManager {
 
     clearCurrentFileName() {
         this.currentFileName = null;
-        this.updateTmpWithCurrentFileName();
+        // this.updateTmpWithCurrentFileName();
     }    
 
     saveToTmp() {
@@ -104,10 +98,10 @@ class SequenceManager {
         if (fs.existsSync(filePath)) {
             const fileContent = fs.readFileSync(filePath, 'utf8');
             const sequenceData = JSON.parse(fileContent);
-            this.sequencer.updateSettings(sequenceData.settings, false);
             sequenceData.tracks.forEach((trackSettings, index) => {
                 this.sequencer.updateTrackSettings(index, trackSettings);
             });
+            this.sequencer.updateSettings(sequenceData.settings, true);
             this.currentFileName = sequenceData.currentFileName;
             return true;
         }

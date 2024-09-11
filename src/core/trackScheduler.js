@@ -15,23 +15,19 @@ class TrackScheduler {
         this.sequencer = sequencer;
         this.currentStep = 0;
         this.currentNoteIndex = 0;
-        this.globalStep = 0;
         this.nextScheduleTime = 0;
         this.activeNotes = new Set();
         this.grooveManager = new GrooveManager(track.settings.groove, track.settings.swingAmount);
         this.noteSeriesCounter = new Array(track.settings.noteSeries.length).fill(1);
         this.pendingResync = false;
         this.pendingResyncBar = false;
-        this.pendingReyncTriggerPattern = false;
         this.updateTriggerPattern();
     }
 
     onTrackSettingsUpdate(newSettings) {
         let shouldResync = false;
         if ('triggerType' in newSettings || 'triggerSettings' in newSettings || 'resyncInterval' in newSettings) {
-            // this.updateTriggerPattern();
-            this.pendingReyncTriggerPattern = true;
-            shouldResync = true;
+            this.updateTriggerPattern();
         }
 
         if ('noteSeries' in newSettings) {
@@ -57,59 +53,13 @@ class TrackScheduler {
     }
 
     updateTriggerPattern() {
-        const oldPattern = this.triggerPattern;
-        const oldLength = oldPattern ? oldPattern.length : 0;
-        
-        // Create the new trigger pattern
         this.triggerPattern = triggerPatternFromSettings(this.track.settings);
-        
-        // Recalculate durations
-        this.precalculateDurations();
-        
-        // Adjust the current step to the equivalent position in the new pattern
-        if (oldLength > 0) {
-            this.currentStep = this.currentStep % oldLength;
-            const oldPosition = this.currentStep / oldLength;
-            this.currentStep = Math.floor(oldPosition * this.triggerPattern.length);
-        }
-        
-        // Adjust global step if necessary (this might not always be needed)
-        // this.globalStep = Math.floor(this.globalStep / oldLength) * this.triggerPattern.length + this.currentStep;
-        
-        // Recalculate the next schedule time based on the current global step
-        this.recalculateNextScheduleTime();
-    }
-    
-    recalculateNextScheduleTime() {
-        const currentTime = this.sequencer.clock.getCurrentTime();
-        const stepDuration = this.getStepDuration();
-        this.nextScheduleTime = currentTime + (stepDuration * (this.currentStep + 1));
-    }
-
-    precalculateDurations() {
-        this.triggerSteps = [];
-        this.durations = [];
-        let lastTriggerStep = -1;
-
-        for (let i = 0; i < this.triggerPattern.length; i++) {
-            if (this.triggerPattern.shouldTrigger(i)) {
-                if (lastTriggerStep !== -1) {
-                    this.durations.push(i - lastTriggerStep);
-                }
-                this.triggerSteps.push(i);
-                lastTriggerStep = i;
-            }
-        }
-
-        // Handle the wrap-around case
-        if (lastTriggerStep !== -1) {
-            this.durations.push(this.triggerPattern.length + this.triggerSteps[0] - lastTriggerStep);
-        }
+        this.triggerSteps = this.triggerPattern.triggerSteps;
+        this.durations = this.triggerPattern.durations;
     }
 
     resetTrackState() {
         this.currentStep = 0;
-        this.globalStep = 0;
         this.nextScheduleTime = this.sequencer.clock.getCurrentTime();
     }
     
@@ -120,17 +70,8 @@ class TrackScheduler {
             this.pendingResync = true;
             return;
         }
-        if (this.pendingReyncTriggerPattern) {
-            this.updateTriggerPattern();
-            this.pendingReyncTriggerPattern = false;
-        }
-
-        // Calculate the current step based on the SongClock's position
-        const stepsPerBeat = this.sequencer.settings.ppq / 24;
-        const totalSteps = (bar * this.sequencer.settings.timeSignature[0] + beat) * stepsPerBeat + Math.floor(tick / 24);
         
-        this.currentStep = totalSteps % this.triggerPattern.length;
-        this.globalStep = totalSteps;
+        this.currentStep = this.sequencer.totalSteps % this.triggerPattern.length;
         this.nextScheduleTime = this.sequencer.clock.getCurrentTime();
         
         // Reset note index and series counter
@@ -141,6 +82,7 @@ class TrackScheduler {
     }
 
     scheduleEvents(lookAheadEnd) {
+        const globalStep = this.sequencer.globalStep;
         if (this.pendingResync) {
             this.resyncTrack();
         }
@@ -148,12 +90,11 @@ class TrackScheduler {
         while (this.nextScheduleTime < lookAheadEnd) {
             const triggerIndex = this.triggerSteps.indexOf(this.currentStep);
             if (triggerIndex !== -1) {
-                this.scheduleNote(this.nextScheduleTime, this.globalStep, this.durations[triggerIndex]);
+                this.scheduleNote(this.nextScheduleTime, globalStep, this.durations[triggerIndex]);
             }
             
             this.advanceStep();
             this.nextScheduleTime += this.getStepDuration();
-            this.globalStep++;
         }
     }
 

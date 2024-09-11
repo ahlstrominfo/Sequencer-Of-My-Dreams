@@ -11,9 +11,9 @@ class Sequencer {
         this.settings = {
             bpm: bpm,
             ppq: ppq,
-            key: 0, // C
-            scale: 0, // Major
-            transposition: 0,
+            // key: 0, // C
+            // scale: 0, // Major
+            // transposition: 0,
             timeSignature: [4, 4],
             swing: 0,
             progressions: null,
@@ -44,6 +44,16 @@ class Sequencer {
 
         this.maxBeats = 0;
         this.progressionSteps = [];
+        this.globalStep = 0;
+        this.totalSteps = 0;
+
+        this.loopIsRunning = false;
+    }
+
+    updateGlobalStep() {
+        const { totalSteps, globalSteps  } = this.clock.getPosition();
+        this.globalStep = globalSteps;
+        this.totalSteps = totalSteps;
     }
 
     setupClockCallbacks() {
@@ -77,21 +87,17 @@ class Sequencer {
     start() {
         if (!this.isPlaying) {
             this.isPlaying = true;
-    
-            // Pre-calculate initial events
-            const initialTime = this.clock.getCurrentTime();
-            const initialLookAhead = initialTime + this.scheduleAheadTime;
+            this.updateGlobalStep();
+
             this.tracks.forEach(track => {
                 track.trackScheduler.resyncTrack();
-                track.trackScheduler.scheduleEvents(initialLookAhead);
             });
-    
-            // Start MIDI and clock
+
+            if (!this.loopIsRunning) {
+                this.scheduleLoop();
+            }
             this.midi.sendStart();
             this.clock.start();
-            
-            // Start the main scheduling loop
-            this.scheduleLoop();
         }
     }
     
@@ -127,11 +133,11 @@ class Sequencer {
         const oldBpm = this.settings.bpm;
         const oldTimeSignature = this.settings.timeSignature;   
         
-        if (newSettings['key'] !== undefined) {
-            newSettings.key = Math.max(0, Math.min(KEYS.length - 1, newSettings.key));
-        } else if (newSettings['key'] === null) {
-            newSettings.key = 0;
-        }
+        // if (newSettings['key'] !== undefined) {
+        //     newSettings.key = Math.max(0, Math.min(KEYS.length - 1, newSettings.key));
+        // } else if (newSettings['key'] === null) {
+        //     newSettings.key = 0;
+        // }
 
         if ('progression' in newSettings) {
             if (newSettings['progressions'] === undefined) { // this is for the old format
@@ -214,18 +220,20 @@ class Sequencer {
     }    
 
     scheduleLoop() {
-        if (!this.isPlaying) return;
+        if (this.isPlaying) {
+            this.updateGlobalStep();
+            this.scheduler.processEvents();
+    
+            const currentTime = this.clock.getCurrentTime();
+            const lookAheadEnd = currentTime + this.scheduleAheadTime;
+    
+            this.tracks.forEach(track => {
+                track.trackScheduler.scheduleEvents(lookAheadEnd);
+            });
+    
+            this.midi.processEventQueue(currentTime);
+        }
 
-        this.scheduler.processEvents();
-
-        const currentTime = this.clock.getCurrentTime();
-        const lookAheadEnd = currentTime + this.scheduleAheadTime;
-
-        this.tracks.forEach(track => {
-            track.trackScheduler.scheduleEvents(lookAheadEnd);
-        });
-
-        this.midi.processEventQueue(currentTime);
 
          
         setImmediate(() => this.scheduleLoop());
@@ -289,7 +297,7 @@ class Sequencer {
 
     updateActiveState(index) {
         this.settings.activeStates[this.settings.currentActiveState] = this.tracks.map(track => track.settings.isActive);
-        this.updateSettings({ currentActiveState: index });   
+        this.updateSettings({ currentActiveState: index }, true);   
     }
 
     setActiveState() {
@@ -339,9 +347,6 @@ class Sequencer {
 
         const firstEvent = this.scheduler.scheduledEvents
             .filter(event => (event.bar === bar && event.beat <= beat));
-            // .forEach(event => {
-            //     this.logger.log(`Event at ${event.bar}:${event.beat}`);
-            // });
 
         let currentProgressionIndex = this.settings.currentProgressionIndex;;
         if (firstEvent.length > 0) {

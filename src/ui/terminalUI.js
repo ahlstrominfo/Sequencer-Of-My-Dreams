@@ -8,6 +8,7 @@ const UITrack = require('./uiTrack');
 const UIGroove = require('./uiGroove');
 const UIMain = require('./uiMain');
 const UIStepFunctions = require('./uiStepFunctions');
+const UISongMode = require('./uiSongMode');
 const Logger = require('../utils/logger');
 const readline = require('readline');
 
@@ -30,7 +31,8 @@ class TerminalUI {
             loadSequence: new UILoadSequence(this, sequencer),
             progression: new UIProgression(this, sequencer),
             track: new UITrack(this, sequencer),
-            groove: new UIGroove(this, sequencer)
+            groove: new UIGroove(this, sequencer),
+            songMode: new UISongMode(this, sequencer),
         };
 
         this.currentView = null;
@@ -45,6 +47,14 @@ class TerminalUI {
         }, 10000);
 
         this.sequencer.registerListener('trackSettingsUpdated', () => {
+            const currentViewCopy = Object.assign({}, this.currentView);
+
+            this.currentView.openView();
+            this.currentView.editRow = currentViewCopy.editRow;
+            this.currentView.editCol = currentViewCopy.editCol;
+        });
+
+        this.sequencer.registerListener('sequencerSettingsUpdated', () => {
             const currentViewCopy = Object.assign({}, this.currentView);
 
             this.currentView.openView();

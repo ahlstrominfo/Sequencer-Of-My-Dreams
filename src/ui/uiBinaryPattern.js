@@ -60,7 +60,10 @@ class uiBinaryPattern extends UIBase {
             enter: () => {
                 const lastNumber = triggerSettings.numbers[triggerSettings.numbers.length - 1];
                 triggerSettings.numbers.push(lastNumber);
-                this.openView();
+                track.updateSettings({
+                    triggerSettings: triggerSettings
+                });                
+                // this.openView();
             },
             rowRender: ({isSelected}) => {
                 if (isSelected) {

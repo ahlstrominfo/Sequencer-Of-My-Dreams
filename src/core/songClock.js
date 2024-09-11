@@ -15,6 +15,7 @@ class SongClock {
         this.onQuarterNoteCallback = null;
         this.onBarChangeCallback = null;
         this.lastQuarterNoteTime = 0n;
+        this.stepsPerBeat = ppq / 24;
     }
 
     calculateMidiClockInterval(bpm) {
@@ -74,16 +75,23 @@ class SongClock {
     }
 
     getPosition() {
-        const currentTime = this.getCurrentTime();
-        const beatsPerMinute = this.bpm * (this.timeSignature[1] / 4);
-        const totalBeats = (currentTime / 60000) * beatsPerMinute;
-        const totalBars = totalBeats / this.timeSignature[0];
+        const currentTime = hrtime.bigint();
+        const elapsedNanos = currentTime - this.startTime;
+        const elapsedSeconds = Number(elapsedNanos) / 1e9;
 
-        const bar = Math.floor(totalBars);
+        const beatsPerSecond = this.bpm / 60;
+        const totalBeats = elapsedSeconds * beatsPerSecond;
+
+        const bar = Math.floor(totalBeats / this.timeSignature[0]);
         const beat = Math.floor(totalBeats % this.timeSignature[0]);
         const tick = Math.floor((totalBeats % 1) * this.ppq);
 
-        return { bar, beat, tick };
+        // Calculate totalSteps and globalStep
+        const fullBeats = bar * this.timeSignature[0] + beat;
+        const totalSteps = fullBeats * this.stepsPerBeat + Math.floor(tick / 24);
+        const globalStep = totalSteps;
+
+        return { bar, beat, tick, totalSteps, globalStep };
     }
 
     getTimeAtPosition(position) {
