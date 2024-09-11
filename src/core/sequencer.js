@@ -139,6 +139,15 @@ class Sequencer {
         //     newSettings.key = 0;
         // }
 
+        if ('song' in newSettings) {
+            newSettings.song.parts.forEach((part, partIndex) => {
+                part.progression = Math.max(0, Math.min(this.settings.progressions.length - 1, part.progression));
+                part.bars = Math.max(1, Math.min(1000, part.bars));
+                part.activeState = Math.max(0, Math.min(15, part.activeState));
+            });
+        }
+
+
         if ('progression' in newSettings) {
             if (newSettings['progressions'] === undefined) { // this is for the old format
                 newSettings['progressions'] = [newSettings.progression];

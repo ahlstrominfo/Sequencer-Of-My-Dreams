@@ -10,57 +10,50 @@ class UISongMode extends UITableView {
         this.rows = [];
         const song = this.sequencer.settings.song;
 
-        /*
-        
-                    song: {
-                'active': false,
-                'parts': [
-                    {
-                        progression: 0,
-                        bars: 4,
-                        activeState: 0
-                    }
-                ],
-            }
-                */
-
-        this.rows.push({
-            name: 'Song Mode ON',
-            value: () => song.active ? 'ON' : 'OFF',
-            enter: () => {
-                this.sequencer.updateSettings({ song: { active: !song.active } });
-            }
-        });
-
         song.parts.forEach((part, partIndex) => {
             const cols = [];
             cols.push({
-                name: `Part ${partIndex}`,
+                name: `Progression`,
                 value: () => part.progression,
                 handle: (delta) => {
                     part.progression = part.progression + delta;
                     const updatedSong = { ...this.sequencer.settings.song };
                     updatedSong.parts[partIndex] = { ...part };
                     this.sequencer.updateSettings({ song: updatedSong });
+                    this.openView();
                 }
             });
             cols.push({
-                name: `Bars ${partIndex}`,
+                name: `Bars`,
                 value: () => part.bars,
                 handle: (delta) => {
                     part.bars = part.bars + delta;
                     const updatedSong = { ...this.sequencer.settings.song };
                     updatedSong.parts[partIndex] = { ...part };
                     this.sequencer.updateSettings({ song: updatedSong });
+                    this.openView();
                 }
             });
             cols.push({
-                name: `Active State ${partIndex}`,
+                name: `Active State`,
                 value: () => part.activeState,
                 handle: (delta) => {
                     part.activeState = part.activeState + delta;
                     const updatedSong = { ...this.sequencer.settings.song };
                     updatedSong.parts[partIndex] = { ...part };
+                    this.sequencer.updateSettings({ song: updatedSong });
+                    this.openView();
+                }
+            });
+            cols.push({
+                name: 'Delete',
+                value: 'Delete',
+                enter: () => {
+                    if (song.parts.length > 1) {
+                        return;
+                    }
+                    const updatedSong = { ...this.sequencer.settings.song };
+                    updatedSong.parts.splice(partIndex, 1);
                     this.sequencer.updateSettings({ song: updatedSong });
                 }
             });
@@ -71,8 +64,21 @@ class UISongMode extends UITableView {
             }); 
         });
 
-
-
+        this.rows.push({
+            name: 'Add Part',
+            enter: () => {
+                const updatedSong = { ...this.sequencer.settings.song };
+                updatedSong.parts.push({ progression: 0, bars: 4, activeState: 0 });
+                this.sequencer.updateSettings({ song: updatedSong });
+                this.openView();
+            },
+            rowRender: ({isSelected}) => {
+                if (isSelected) {
+                    return `> Add new part <`;
+                }
+                return ` Add new part`;
+            }
+        });
     }
 
     render() {

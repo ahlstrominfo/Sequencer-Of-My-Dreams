@@ -39,6 +39,16 @@ class UISequencerSettings extends UIBase {
                     this.terminalUI.setView('progression');
                 }
             },
+            { name: '------------------', selectable: false },
+            {
+                name: 'Song Mode',
+                value: () => this.sequencer.settings.song.active ? 'ON' : 'OFF',
+                enter: () => {
+                    const song = this.sequencer.settings.song;
+                    song.active = !song.active;
+                    this.sequencer.updateSettings({ song });
+                }
+            },
             {
                 name: 'Song Mode',
                 value: 'Manage',
