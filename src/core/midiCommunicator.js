@@ -20,16 +20,18 @@ class MidiCommunicator {
             const event = this.eventQueue.shift();
             
             if (event.type === 'note') {
-                this.sendMidiMessage({ type: 'noteon', message: event.message });
-                this.eventQueue = this.eventQueue.filter(e => !(e.type === 'noteoff' 
-                    && e.message.note === event.message.note 
-                    && e.message.channel === event.message.channel)); 
+                if (this.sequencer.tracks[event.trackId].settings.isActive) {
+                    this.sendMidiMessage({ type: 'noteon', message: event.message });
+                    this.eventQueue = this.eventQueue.filter(e => !(e.type === 'noteoff' 
+                        && e.message.note === event.message.note 
+                        && e.message.channel === event.message.channel)); 
 
-                this.queueNoteEvent({
-                    type: 'noteoff',
-                    message: event.message,
-                    time: currentTime + event.duration - 1 // just remove a ms to avoid overlapping notes
-                });
+                    this.queueNoteEvent({
+                        type: 'noteoff',
+                        message: event.message,
+                        time: currentTime + event.duration - 1 // just remove a ms to avoid overlapping notes
+                    });
+                }
             } else if (event.type === 'noteoff') {
                 this.sendMidiMessage(event);
             }

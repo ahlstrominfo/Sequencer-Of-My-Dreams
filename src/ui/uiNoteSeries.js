@@ -27,7 +27,7 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
-                    name: 'NrNotes',
+                    name: 'NrN',
                     value: () => series.numberOfNotes,
                     handle: (delta, step) => {
                         series.numberOfNotes = series.numberOfNotes + delta * step;
@@ -78,7 +78,7 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
-                    name: 'Spread',
+                    name: 'Sprd',
                     value: () => series.spread,
                     handle: (delta) => {
                         series.spread = series.spread + delta;
@@ -89,7 +89,7 @@ class UINoteSeries extends UITableView {
                     padding: 5,
                 },
                 {
-                    name: 'Prob',
+                    name: 'Prb',
                     value: () => series.probability !== undefined ? series.probability : 100,
                     handle: (delta, step) => {
                         series.probability = series.probability + delta * step;
@@ -123,7 +123,7 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
-                    name: 'Play Mult',
+                    name: 'Ply M',
                     value: () => series.playMultiplier,
                     handle: (delta) => {
                         series.playMultiplier = findMultiplierPreset(series.playMultiplier, delta);
@@ -131,7 +131,7 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
-                    name: 'Wonky Arp',
+                    name: 'Wnky',
                     value: () => series.wonkyArp ? 'Yes' : 'No',
                     enter: () => {
                         series.wonkyArp = !series.wonkyArp;
@@ -139,8 +139,8 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
-                    name: 'Delete',
-                    value: 'Delete',
+                    name: 'Del',
+                    value: 'X',
                     enter: () => {
                         if (track.settings.noteSeries.length <= 1) {
                             return;

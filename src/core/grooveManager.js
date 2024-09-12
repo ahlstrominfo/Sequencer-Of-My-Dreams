@@ -5,6 +5,7 @@ class GrooveManager {
     constructor(initialGroove, initialSwingAmount = 0) {
         this.groove = this.validateGroove(initialGroove);
         this.swingAmount = this.clampPercentage(initialSwingAmount);
+        this.log = false;
     }
 
     validateGroove(groove) {
@@ -39,8 +40,10 @@ class GrooveManager {
         let timeOffsetPercentage = 0;
         let velocityOffsetPercentage = 0;
 
+        // this.log && console.log(`Applying groove for globalStep: ${globalStep}, grooveStep: ${JSON.stringify(grooveStep)}`);
+
         if (grooveStep) {
-            // Use groove if available
+            // Apply groove step-by-step
             timeOffsetPercentage = grooveStep.timeOffset;
             velocityOffsetPercentage = grooveStep.velocityOffset;
         } else {
@@ -57,6 +60,8 @@ class GrooveManager {
 
         // Adjust velocity based on track volume
         adjustedVelocity = Math.max(MIDI_MIN_VELOCITY, Math.min(MIDI_MAX_VELOCITY, adjustedVelocity * (trackVolume / 100)));
+
+        // this.log && console.log(`Adjusted time: ${adjustedTime}, velocity: ${adjustedVelocity}`);
 
         return { 
             time: adjustedTime, 

@@ -46,14 +46,24 @@ class Sequencer {
         this.progressionSteps = [];
         this.globalStep = 0;
         this.totalSteps = 0;
+        this.lastUpdateTime = 0;
 
         this.loopIsRunning = false;
     }
 
+    getStepDuration() {
+        const MILLISECONDS_PER_MINUTE = 60000;
+        const beatsPerMinute = this.settings.bpm;
+        const stepsPerBeat = 4; // Assuming 16th note resolution
+        return (MILLISECONDS_PER_MINUTE / beatsPerMinute) * (1 / stepsPerBeat);
+    }
+
     updateGlobalStep() {
-        const { totalSteps, globalSteps  } = this.clock.getPosition();
-        this.globalStep = globalSteps;
-        this.totalSteps = totalSteps;
+        const currentTime = this.clock.getCurrentTime();
+        const stepDuration = this.getStepDuration();
+        const elapsedSteps = Math.floor((currentTime - this.lastUpdateTime) / stepDuration);
+        this.globalStep += elapsedSteps;
+        this.lastUpdateTime = currentTime;
     }
 
     setupClockCallbacks() {
@@ -86,6 +96,14 @@ class Sequencer {
 
     start() {
         if (!this.isPlaying) {
+            this.lastUpdateTime = this.clock.getCurrentTime();
+            this.globalStep = 0;
+
+            if (this.settings.song.active) {
+                this.clock.reset();
+                this.planSong();
+            }
+
             this.isPlaying = true;
             this.updateGlobalStep();
 
@@ -106,11 +124,61 @@ class Sequencer {
         if (this.isPlaying) {
             this.isPlaying = false;
             this.beatCounter = 0;
+            this.scheduler.clearEvents();
             this.clock.stop();
             this.midi.sendStop();
             this.midi.stopAllActiveNotes();
         }
     }
+    
+    planSong() {
+        const song = this.settings.song;
+        let nrBars = 0;
+    
+        const currentBar = this.clock.getPosition().bar;
+    
+        // Set initial progression and active state
+        this.updateSettings({
+            currentProgressionIndex: song.parts[0].progression,
+            currentActiveState: song.parts[0].activeState
+        });
+    
+        // Start from the second part (index 1)
+        for (let i = 1; i < song.parts.length; i++) {
+            const part = song.parts[i];
+            nrBars += song.parts[i - 1].bars; // Add bars from the previous part
+    
+            // Schedule progression change
+            this.scheduler.scheduleEvent(currentBar + nrBars, 0, () => {
+                this.updateSettings({ 
+                    currentProgressionIndex: part.progression,
+                });
+            }, {
+                type: 'progressionChange',
+                progressionIndex: part.progression
+            });
+    
+            // Schedule active state change
+            this.scheduler.scheduleEvent(currentBar + nrBars, 0, () => {
+                this.updateSettings({ 
+                    currentActiveState: part.activeState,
+                });
+            }, {
+                type: 'activeStateChange',
+                activeState: part.activeState
+            });
+        }
+    
+        // Add the bars from the last part
+        nrBars += song.parts[song.parts.length - 1].bars;
+    
+        // Schedule the next planSong call
+        this.scheduler.scheduleEvent(currentBar + nrBars, 0, () => {
+            this.planSong();
+        }, {
+            type: 'planSong'
+        });
+    } 
 
     tooglePlay() {
         if (this.isPlaying) {
@@ -132,15 +200,9 @@ class Sequencer {
         const oldActiveState = this.settings.currentActiveState;
         const oldBpm = this.settings.bpm;
         const oldTimeSignature = this.settings.timeSignature;   
-        
-        // if (newSettings['key'] !== undefined) {
-        //     newSettings.key = Math.max(0, Math.min(KEYS.length - 1, newSettings.key));
-        // } else if (newSettings['key'] === null) {
-        //     newSettings.key = 0;
-        // }
 
         if ('song' in newSettings) {
-            newSettings.song.parts.forEach((part, partIndex) => {
+            newSettings.song.parts.forEach((part) => {
                 part.progression = Math.max(0, Math.min(this.settings.progressions.length - 1, part.progression));
                 part.bars = Math.max(1, Math.min(1000, part.bars));
                 part.activeState = Math.max(0, Math.min(15, part.activeState));
@@ -202,7 +264,7 @@ class Sequencer {
         }
 
         if (oldActiveState !== this.settings.currentActiveState) {
-            if (this.isPlaying) {
+            if (this.isPlaying && this.settings.song.active === false) {
                 this.loadActiveStates = true;
             } else {
                 this.setActiveState();
@@ -292,6 +354,10 @@ class Sequencer {
                 { bars: 1, beats: 0, scale: 0, transposition: 0, key: 0 }
             ]
         ];
+        this.settings.song = {
+            active: false,
+            parts: []
+        };
         this.settings.currentProgressionIndex = 0;    
     }
 
@@ -355,7 +421,7 @@ class Sequencer {
     getProgressionAtPosition(bar, beat) {
 
         const firstEvent = this.scheduler.scheduledEvents
-            .filter(event => (event.bar === bar && event.beat <= beat));
+            .filter(event => (event.bar === bar && event.beat <= beat && event.type === 'progressionChange'));
 
         let currentProgressionIndex = this.settings.currentProgressionIndex;;
         if (firstEvent.length > 0) {

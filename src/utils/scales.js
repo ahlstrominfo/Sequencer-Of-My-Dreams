@@ -68,7 +68,7 @@ function generateChord(rootNote, options = {}) {
     chord = invertChord(chord, inversion);
 
     // Apply pitchSpan
-    if (pitchSpan > 0) {
+    if (pitchSpan !== 0) {
         chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
     }
 

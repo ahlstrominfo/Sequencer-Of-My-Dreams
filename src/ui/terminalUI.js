@@ -1,5 +1,6 @@
 const UISequencerSettings = require('./uiSequencerSettings');
 const UIBinaryPattern = require('./uiBinaryPattern');
+const UIEuclideanPattern = require('./uiEuclideanPattern');
 const UINoteSeries = require('./uiNoteSeries');
 const UIStepPattern = require('./uiStepPattern');
 const UILoadSequence = require('./uiLoadSequence');
@@ -25,6 +26,7 @@ class TerminalUI {
             main: new UIMain(this, sequencer),
             sequencerSettings: new UISequencerSettings(this, sequencer),
             binaryPattern: new UIBinaryPattern(this, sequencer),
+            euclideanPattern: new UIEuclideanPattern(this, sequencer),
             stepFunctions: new UIStepFunctions(this, sequencer),
             stepPattern: new UIStepPattern(this, sequencer),
             noteSeries: new UINoteSeries(this, sequencer),

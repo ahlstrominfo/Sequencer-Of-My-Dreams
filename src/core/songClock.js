@@ -22,15 +22,19 @@ class SongClock {
         return BigInt(Math.floor((60 * 1e9) / (bpm * 24))); // MIDI clock is 24 ppq
     }
 
+    reset() {
+        const now = hrtime.bigint();
+        this.startTime = now;
+        this.lastClockTime = now;
+        this.lastQuarterNoteTime = now;
+        this.clockAccumulator = 0n;
+        this.clockTick = 0;
+    }
+
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
-            const now = hrtime.bigint();
-            this.startTime = now;
-            this.lastClockTime = now;
-            this.lastQuarterNoteTime = now;
-            this.clockAccumulator = 0n;
-            this.clockTick = 0;
+            this.reset();
             
             // Trigger the first quarter note immediately
             if (this.onQuarterNoteCallback) {
@@ -108,6 +112,16 @@ class SongClock {
         const beat = Math.floor(beatsElapsed % this.timeSignature[0]);
         const tick = Math.floor((beatsElapsed % 1) * this.ppq);
         return { bar, beat, tick };
+    }
+
+    getGlobalStepAtTime(time) {
+        const { bar, beat, tick } = this.getPositionFromTime(time);
+        const beatsPerBar = this.timeSignature[0];
+        const stepsPerBeat = this.timeSignature[1]; // Assuming 16th note resolution
+        const totalBeats = (bar * beatsPerBar) + beat;
+        const stepsFromBeats = totalBeats * stepsPerBeat;
+        const stepsFromTicks = Math.floor(tick / (this.ppq / stepsPerBeat));
+        return stepsFromBeats + stepsFromTicks;
     }
 
     getMidiBeats() {
