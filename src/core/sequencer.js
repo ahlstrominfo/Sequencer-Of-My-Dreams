@@ -7,7 +7,7 @@ const { conformNoteToScale, SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
 
 class Sequencer {
-    constructor(bpm = 120, ppq = 96) {
+    constructor(bpm = 120, ppq = 96, realTimeKeeper) {
         this.settings = {
             bpm: bpm,
             ppq: ppq,
@@ -22,16 +22,17 @@ class Sequencer {
             currentActiveState: 0
         };
 
+        this.realTimeKeeper = realTimeKeeper;
         this.beatCounter = 0;
         this.tracks = [];
         this.isPlaying = false;
         this.midi = new MidiCommunicator(this);
-        this.clock = new SongClock(bpm, ppq, this.settings.timeSignature);
+        this.clock = new SongClock(bpm, ppq, this.settings.timeSignature, realTimeKeeper);
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
 
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
-        this.tickDuration = this.calculateTickDuration();
+        this.tickDuration = this.clock.calculateTickDuration();
 
         this.logger = new Logger();
 
@@ -257,7 +258,7 @@ class Sequencer {
         if (this.settings.bpm !== oldBpm) {
             this.settings.bpm = Math.min(300, Math.max(30, this.settings.bpm));
             this.clock.setBPM(this.settings.bpm);
-            this.tickDuration = this.calculateTickDuration();
+            this.tickDuration = this.clock.calculateTickDuration();
         }
         if (this.settings.timeSignature !== oldTimeSignature) {
             this.clock.setTimeSignature(...this.settings.timeSignature);
@@ -277,10 +278,6 @@ class Sequencer {
 
         this.beatCounter = 0;
         shouldSaveToTmp && this.sequenceManager.saveToTmp();
-    }
-    
-    calculateTickDuration() {
-        return (60 / this.settings.bpm / this.settings.ppq) * 1000;
     }
 
     updateTrackSettings(index, trackSettings) {
@@ -303,11 +300,8 @@ class Sequencer {
             });
     
             this.midi.processEventQueue(currentTime);
-        }
-
-
-         
-        setImmediate(() => this.scheduleLoop());
+        }         
+        this.realTimeKeeper.setImmediate(() => this.scheduleLoop());
     }
 
     calculateProgressionSteps() {

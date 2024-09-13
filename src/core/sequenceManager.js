@@ -36,7 +36,7 @@ class SequenceManager {
 
         fs.writeFileSync(filePath, JSON.stringify(sequenceData, null, 2));
         this.currentFileName = fileName;
-        this.updateTmpWithCurrentFileName();
+        this.saveToTmp();
         return fileName;
     }
 

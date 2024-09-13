@@ -2,6 +2,7 @@ const Sequencer = require('./core/sequencer');
 const TerminalUI = require('./ui/terminalUI');
 const MidiControllerUI = require('./device/midiControllerUI');
 const Logger = require('./utils/logger');
+const RealTimeKeeper = require('./core/realTimeKeeper');
 // const midiSettings = require('../data/midiDeviceSettings.json');
 
 let midiSettings;
@@ -16,10 +17,11 @@ try {
     };
 }
 
+const timeKeeper = new RealTimeKeeper();
 // Initialize sequencer
 const logger = new Logger();
 
-const sequencer = new Sequencer(120, 24);
+const sequencer = new Sequencer(120, 24, timeKeeper);
 const ui = new TerminalUI(sequencer);
 
 sequencer.logger = logger;

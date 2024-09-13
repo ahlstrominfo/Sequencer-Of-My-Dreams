@@ -1,7 +1,7 @@
 const { hrtime } = require('process');
 
 class SongClock {
-    constructor(bpm = 120, ppq = 96, timeSignature = [4, 4]) {
+    constructor(bpm = 120, ppq = 96, timeSignature = [4, 4], timeKeeper) {
         this.bpm = bpm;
         this.ppq = ppq;
         this.timeSignature = timeSignature;
@@ -9,21 +9,25 @@ class SongClock {
         this.startTime = 0n;
         this.clockTick = 0;
         this.lastClockTime = 0n;
-        this.midiClockInterval = this.calculateMidiClockInterval(bpm);
         this.clockAccumulator = 0n;
         this.onClockTickCallback = null;
         this.onQuarterNoteCallback = null;
         this.onBarChangeCallback = null;
         this.lastQuarterNoteTime = 0n;
         this.stepsPerBeat = ppq / 24;
+        this.timeKeeper = timeKeeper;
+        this.midiClockInterval = this.calculateMidiClockInterval(bpm);
     }
 
+    // calculateMidiClockInterval(bpm) {
+    //     return BigInt(Math.floor((60 * 1e9) / (bpm * 24))); // MIDI clock is 24 ppq
+    // }
     calculateMidiClockInterval(bpm) {
-        return BigInt(Math.floor((60 * 1e9) / (bpm * 24))); // MIDI clock is 24 ppq
-    }
+        return this.timeKeeper.msToNano(60000 / (bpm * 24));
+    }    
 
     reset() {
-        const now = hrtime.bigint();
+        const now = this.timeKeeper.getHighResolutionTime();
         this.startTime = now;
         this.lastClockTime = now;
         this.lastQuarterNoteTime = now;
@@ -54,7 +58,7 @@ class SongClock {
 
     getCurrentTime() {
         if (!this.isRunning) return 0;
-        return Number(hrtime.bigint() - this.startTime) / 1e6;
+        return this.timeKeeper.nanoToMs(this.timeKeeper.getHighResolutionTime() - this.startTime);
     }
 
     setBPM(bpm) {
@@ -79,9 +83,9 @@ class SongClock {
     }
 
     getPosition() {
-        const currentTime = hrtime.bigint();
+        const currentTime = this.timeKeeper.getHighResolutionTime();
         const elapsedNanos = currentTime - this.startTime;
-        const elapsedSeconds = Number(elapsedNanos) / 1e9;
+        const elapsedSeconds = this.timeKeeper.nanoToMs(elapsedNanos) / 1000;
 
         const beatsPerSecond = this.bpm / 60;
         const totalBeats = elapsedSeconds * beatsPerSecond;
@@ -90,7 +94,6 @@ class SongClock {
         const beat = Math.floor(totalBeats % this.timeSignature[0]);
         const tick = Math.floor((totalBeats % 1) * this.ppq);
 
-        // Calculate totalSteps and globalStep
         const fullBeats = bar * this.timeSignature[0] + beat;
         const totalSteps = fullBeats * this.stepsPerBeat + Math.floor(tick / 24);
         const globalStep = totalSteps;
@@ -146,7 +149,7 @@ class SongClock {
     clockLoop() {
         if (!this.isRunning) return;
     
-        const currentTime = hrtime.bigint();
+        const currentTime = this.timeKeeper.getHighResolutionTime();
         const elapsed = currentTime - this.lastClockTime;
         this.clockAccumulator += elapsed;
     
@@ -160,7 +163,7 @@ class SongClock {
     
             // Every 24 clock ticks is a quarter note (MIDI standard)
             if (this.clockTick % 24 === 0) {
-                const actualInterval = Number(currentTime - this.lastQuarterNoteTime) / 1e6;
+                const actualInterval = this.timeKeeper.nanoToMs(currentTime - this.lastQuarterNoteTime);
                 const expectedInterval = 60000 / this.bpm;
                 const drift = actualInterval - expectedInterval;
                 
@@ -183,7 +186,7 @@ class SongClock {
         this.lastClockTime = currentTime;
     
         // Schedule next clock check
-        setImmediate(() => this.clockLoop());
+        this.timeKeeper.setImmediate(() => this.clockLoop());
     }
 
     fastForward(bars) {
@@ -211,15 +214,19 @@ class SongClock {
     setPosition(position) {
         const newTime = this.getTimeAtPosition(position);
         const elapsed = newTime - this.getCurrentTime();
-        this.startTime -= BigInt(Math.round(elapsed * 1e6));
+        this.startTime -= this.timeKeeper.msToNano(elapsed);
         this.clockTick = Math.floor((newTime / 1000) * 24 * (this.bpm / 60));
-        this.lastClockTime = hrtime.bigint() - BigInt(Math.round((newTime % (1000 / 24)) * 1e6));
+        this.lastClockTime = this.timeKeeper.getHighResolutionTime() - this.timeKeeper.msToNano(newTime % (1000 / 24));
         this.clockAccumulator = 0n;
 
         if (this.onBarChangeCallback) {
             this.onBarChangeCallback(position.bar);
         }
     }
+
+    calculateTickDuration() {
+        return (60 / this.bpm / this.ppq) * 1000;
+    }    
 }
 
 module.exports = SongClock;

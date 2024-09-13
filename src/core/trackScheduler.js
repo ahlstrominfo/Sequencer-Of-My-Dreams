@@ -104,15 +104,15 @@ class TrackScheduler {
     scheduleNote(time, globalStep, stepCount) {
         if (!this.shouldTriggerNote()) return;
 
+        
         const noteIndex = this.getNoteIndex();
         const noteSettings = this.track.settings.noteSeries[noteIndex];
         const chord = this.getNextNote(noteIndex);
-
+        
         if (chord && chord.length > 0) {
             const speedMultiplier = this.track.settings.speedMultiplier;
             const adjustedStepCount = stepCount * speedMultiplier;
             const { noteStartTime, noteDuration } = this.calculateNoteTimings(time, globalStep, adjustedStepCount);
-            // const { noteStartTime, noteDuration } = this.calculateNoteTimings(time, globalStep, stepCount);
 
             if ((this.track.settings.arpMode === ARP_MODES.OFF && noteSettings.arpMode === ARP_MODES.USE_TRACK)
                 || noteSettings.arpMode === ARP_MODES.OFF) {
@@ -139,21 +139,22 @@ class TrackScheduler {
 
     calculateNoteTimings(time, globalStep, stepCount) {
         const baseStepDuration = this.getStepDuration();
+        const speedMultiplier = this.track.settings.speedMultiplier;
         let noteDuration = this.track.settings.useMaxDuration
-            ? baseStepDuration * stepCount * this.track.settings.maxDurationFactor
-            : baseStepDuration;
-
+            ? baseStepDuration * stepCount * this.track.settings.maxDurationFactor / speedMultiplier
+            : baseStepDuration / speedMultiplier;
+    
         if (this.track.settings.useMaxDuration && this.track.settings.maxDurationFactor === 1) {
             noteDuration -= this.sequencer.tickDuration;
         }
-
+    
         const appliedGrooveAndSwing = this.grooveManager.applyGrooveAndSwing(
             time,
             {},
             globalStep,
             noteDuration
         );
-
+    
         return { noteStartTime: appliedGrooveAndSwing.time, noteDuration: appliedGrooveAndSwing.duration };
     }
 
@@ -203,8 +204,6 @@ class TrackScheduler {
                         duration,
                         this.track.settings.volume
                     );
-                    
-                    this.track.trackId === 4 && this.sequencer.logger.log(`Scheduling note ${pitch} at ${adjustedTime} for ${duration} ms`);
 
                     this.sequencer.midi.queueNoteEvent({
                         time: adjustedTime,
@@ -297,7 +296,6 @@ class TrackScheduler {
                     if (this.track.settings.conformNotes) {
                         pitch = this.pitchForProgression(pitch, adjustedTime);
                     }             
-    
                     const noteDuration = arpStepDuration - this.sequencer.tickDuration;
     
                     sendChords.push({
@@ -341,8 +339,8 @@ class TrackScheduler {
 
     updateActiveNotes(pitch, startTime, duration) {
         const currentTime = this.sequencer.clock.getCurrentTime();
-        setTimeout(() => this.activeNotes.add(pitch), startTime - currentTime);
-        setTimeout(() => this.activeNotes.delete(pitch), startTime + duration - currentTime);
+        this.sequencer.realTimeKeeper.setTimeout(() => this.activeNotes.add(pitch), startTime - currentTime);
+        this.sequencer.realTimeKeeper.setTimeout(() => this.activeNotes.delete(pitch), startTime + duration - currentTime);
     }
     
     getNextNote(noteIndex) {
