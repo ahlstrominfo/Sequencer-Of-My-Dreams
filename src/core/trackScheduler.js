@@ -2,7 +2,7 @@ const GrooveManager = require('./grooveManager');
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
 const { PLAY_ORDER } = require('../utils/utils');
 const { generateChord, conformNoteToScale, SCALES} = require('../utils/scales');
-const { ARP_MODES, getArpeggiatedNotes, generateArpeggioPattern} = require('../utils/arps');
+const { ARP_MODES, generateArpeggioPattern} = require('../utils/arps');
 
 // Constants
 const MILLISECONDS_PER_MINUTE = 60000;
