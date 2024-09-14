@@ -46,10 +46,8 @@ describe('Sequencer', () => {
       sequencer.midi.queueNoteEvent = mockMidiOutput;
 
       runSequencer(4000, 100);
-
+      
       expect(mockMidiOutput).toHaveBeenCalledTimes(testCase.nrNotes);
-
-      // console.log(JSON.stringify(mockMidiOutput.mock.calls, null, 4));;
 
       for (let i = 0; i < testCase.nrNotes; i++) {
         expect(mockMidiOutput).toHaveBeenNthCalledWith(i + 1, expect.objectContaining({

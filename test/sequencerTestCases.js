@@ -177,9 +177,108 @@ const generateTestCases = () => [
           3500, 3666.6667, 3833.3333,  // wonky arp
         ],
       },
+      {
+        name: "4/4 track alternating between chord and wonky arp",
+        track:     {
+          "channel": 1,
+          "steps": 16,
+          "noteSeries": [
+            {
+              "rootNote": 60,
+              "numberOfNotes": 1,
+              "inversion": 0,
+              "velocity": 80,
+              "pitchSpan": 0,
+              "velocitySpan": 0,
+              "probability": 100,
+              "aValue": 1,
+              "bValue": 1,
+              "arpMode": 16,
+              "spread": 0,
+              "playMultiplier": 1,
+              "wonkyArp": false
+            },
+            {
+              "rootNote": 60,
+              "numberOfNotes": 3,
+              "inversion": 0,
+              "velocity": 100,
+              "pitchSpan": 0,
+              "velocitySpan": 0,
+              "probability": 100,
+              "aValue": 1,
+              "bValue": 1,
+              "arpMode": 9,
+              "spread": 0,
+              "playMultiplier": 0.5,
+              "wonkyArp": false
+            }
+          ],
+          "triggerType": 1,
+          "triggerSettings": {
+            "numbers": [
+              8,
+              8
+            ],
+            "length": 16,
+            "hits": 4,
+            "shift": 0,
+            "steps": []
+          },
+          "groove": [],
+          "grooveName": "Steady",
+          "resyncInterval": 0,
+          "speedMultiplier": 1,
+          "swingAmount": 0,
+          "playOrder": 0,
+          "probability": 100,
+          "conformNotes": true,
+          "arpMode": 0,
+          "wonkyArp": false,
+          "playMultiplier": 1,
+          "useMaxDuration": true,
+          "maxDurationFactor": 1,
+          "isActive": true,
+          "volume": 100,
+          "tieNoteSeriestoPattern": false
+        },
+        nrNotes: 28, 
+        notes: [
+          60,
+          60, 62, 64,
+          60, 62, 64, 
+          60,
+          60, 62, 64,
+          60, 62, 64, 
+          60,
+          60, 62, 64,
+          60, 62, 64, 
+          60,
+          60, 62, 64,
+          60, 62, 64,
+        ],
+        expectedTimes: [
+          0,
+          500, 500, 500,
+          750, 750, 750,
+          1000,
+          1500, 1500, 1500,
+          1750, 1750, 1750,
+          2000,
+          2500, 2500, 2500,
+          2750, 2750, 2750,
+          3000,
+          3500, 3500, 3500,
+          3750, 3750, 3750,
+        ],
+      }      
   ];
   
 // 
+
+/*
+
+*/
 
 
   module.exports = generateTestCases;

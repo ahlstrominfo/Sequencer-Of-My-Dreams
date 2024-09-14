@@ -69,7 +69,7 @@ class TrackScheduler {
             return;
         }
         
-        this.currentStep = this.sequencer.totalSteps % this.triggerPattern.length;
+        this.currentStep = currentPosition.totalSteps % this.triggerPattern.length;
         this.nextScheduleTime = this.sequencer.clock.getCurrentTime();
         
         // Reset note index and series counter
@@ -91,7 +91,6 @@ class TrackScheduler {
             const triggerIndex = this.triggerSteps.indexOf(currentStep);
 
             if (triggerIndex !== -1) {
-                
                 const globalStepAtTime = this.sequencer.clock.getGlobalStepAtTime(this.nextScheduleTime);
                 this.scheduleNote(this.nextScheduleTime, globalStepAtTime, this.durations[triggerIndex]);
             }
@@ -215,8 +214,14 @@ class TrackScheduler {
     }
 
     scheduleArpeggio(time, duration, globalStep, noteSettings, noteIndex) {
-        const { arpMode, channel, wonkyArp } = this.track.settings;
+        const { channel, wonkyArp } = this.track.settings;
         let playMultiplier = this.track.settings.playMultiplier;
+
+        let arpMode = noteSettings.arpMode;
+        if (noteSettings.arpMode !== ARP_MODES.USE_TRACK) {
+            arpMode = noteSettings.arpMode;
+        }
+
 
         if (noteSettings.arpMode !== ARP_MODES.OFF 
             && noteSettings.arpMode !== ARP_MODES.USE_TRACK 

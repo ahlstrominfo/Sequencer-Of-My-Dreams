@@ -84,7 +84,6 @@ class Track {
                 playMultiplier: noteSeries.playMultiplier,
                 wonkyArp: noteSeries.wonkyArp,
             }));
-            console.log(JSON.stringify(newSettings.noteSeries));
         }
 
         if ('groove' in newSettings) {
