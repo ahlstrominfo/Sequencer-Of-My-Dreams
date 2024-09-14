@@ -49,6 +49,7 @@ describe('Sequencer', () => {
       
       expect(mockMidiOutput).toHaveBeenCalledTimes(testCase.nrNotes);
 
+
       for (let i = 0; i < testCase.nrNotes; i++) {
         expect(mockMidiOutput).toHaveBeenNthCalledWith(i + 1, expect.objectContaining({
           type: 'note',

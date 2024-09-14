@@ -260,7 +260,9 @@ class TrackScheduler {
 
 
                 const sendChords = [];
-                if (arpMode === ARP_MODES.CHORD) {
+                if (arpMode === ARP_MODES.CHORD 
+                    || (this.track.settings.arpMode === ARP_MODES.CHORD && noteSettings.arpMode === ARP_MODES.USE_TRACK)) 
+                {
                     chord.forEach(pitch => {
                         const { velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
                             time,

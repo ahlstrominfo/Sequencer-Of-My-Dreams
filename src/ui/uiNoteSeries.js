@@ -5,6 +5,8 @@ const { ARP_MODES_NAMES } = require("../utils/arps");
 class UINoteSeries extends UITableView {
     constructor(terminalUI, sequencer) {
         super(terminalUI, sequencer);
+        this.columnGroups = [7, 2, 8];
+        this.nrPages = this.columnGroups.length;
     }
 
     openView() {
@@ -36,6 +38,17 @@ class UINoteSeries extends UITableView {
                         });
                     }
                 },
+                {
+                    name: 'Sprd',
+                    value: () => series.spread,
+                    handle: (delta) => {
+                        series.spread = series.spread + delta;
+                        this.updateTrackSettingsAndReload({
+                            noteSeries: track.settings.noteSeries
+                        });
+                    },
+                    padding: 5,
+                },                
                 {
                     name: 'Inv',
                     value: () => series.inversion,
@@ -76,17 +89,6 @@ class UINoteSeries extends UITableView {
                             noteSeries: track.settings.noteSeries
                         });
                     }
-                },
-                {
-                    name: 'Sprd',
-                    value: () => series.spread,
-                    handle: (delta) => {
-                        series.spread = series.spread + delta;
-                        this.updateTrackSettingsAndReload({
-                            noteSeries: track.settings.noteSeries
-                        });
-                    },
-                    padding: 5,
                 },
                 {
                     name: 'Prb',
