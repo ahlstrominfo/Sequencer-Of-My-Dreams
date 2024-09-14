@@ -28,11 +28,12 @@ class Sequencer {
         this.isPlaying = false;
         this.midi = new MidiCommunicator(this);
         this.clock = new SongClock(bpm, ppq, this.settings.timeSignature, realTimeKeeper);
+        this.clock.updateMidiClockInterval();
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
 
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
-        this.tickDuration = this.clock.calculateTickDuration();
+        this.tickDuration = 0; //this.clock.calculateTickDuration();
 
         this.logger = new Logger();
 
@@ -45,9 +46,6 @@ class Sequencer {
 
         this.maxBeats = 0;
         this.progressionSteps = [];
-        this.globalStep = 0;
-        this.totalSteps = 0;
-        this.lastUpdateTime = 0;
 
         this.loopIsRunning = false;
     }
@@ -59,16 +57,7 @@ class Sequencer {
         return (MILLISECONDS_PER_MINUTE / beatsPerMinute) * (1 / stepsPerBeat);
     }
 
-    updateGlobalStep() {
-        const currentTime = this.clock.getCurrentTime();
-        const stepDuration = this.getStepDuration();
-        const elapsedSteps = Math.floor((currentTime - this.lastUpdateTime) / stepDuration);
-        this.globalStep += elapsedSteps;
-        this.lastUpdateTime = currentTime;
-    }
-
     setupClockCallbacks() {
-
         this.clock.setOnClockTickCallback(() => {
             this.midi.sendClock();
         });
@@ -97,16 +86,12 @@ class Sequencer {
 
     start() {
         if (!this.isPlaying) {
-            this.lastUpdateTime = this.clock.getCurrentTime();
-            this.globalStep = 0;
-
             if (this.settings.song.active) {
                 this.clock.reset();
                 this.planSong();
             }
 
             this.isPlaying = true;
-            this.updateGlobalStep();
 
             this.tracks.forEach(track => {
                 track.trackScheduler.resyncTrack();
@@ -289,7 +274,6 @@ class Sequencer {
 
     scheduleLoop() {
         if (this.isPlaying) {
-            this.updateGlobalStep();
             this.scheduler.processEvents();
     
             const currentTime = this.clock.getCurrentTime();
@@ -298,7 +282,6 @@ class Sequencer {
             this.tracks.forEach(track => {
                 track.trackScheduler.scheduleEvents(lookAheadEnd);
             });
-    
             this.midi.processEventQueue(currentTime);
         }         
         this.realTimeKeeper.setImmediate(() => this.scheduleLoop());

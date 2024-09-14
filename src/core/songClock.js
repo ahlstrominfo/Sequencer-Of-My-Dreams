@@ -16,12 +16,13 @@ class SongClock {
         this.lastQuarterNoteTime = 0n;
         this.stepsPerBeat = ppq / 24;
         this.timeKeeper = timeKeeper;
-        this.midiClockInterval = this.calculateMidiClockInterval(bpm);
+        // this.updateMidiClockInterval();
     }
 
-    // calculateMidiClockInterval(bpm) {
-    //     return BigInt(Math.floor((60 * 1e9) / (bpm * 24))); // MIDI clock is 24 ppq
-    // }
+    updateMidiClockInterval() {
+        this.midiClockInterval = this.calculateMidiClockInterval(this.bpm);
+    }
+
     calculateMidiClockInterval(bpm) {
         return this.timeKeeper.msToNano(60000 / (bpm * 24));
     }    
@@ -63,7 +64,7 @@ class SongClock {
 
     setBPM(bpm) {
         this.bpm = bpm;
-        this.midiClockInterval = this.calculateMidiClockInterval(bpm);
+        this.updateMidiClockInterval();
     }
 
     setTimeSignature(numerator, denominator) {

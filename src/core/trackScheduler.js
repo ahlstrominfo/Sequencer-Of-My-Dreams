@@ -90,8 +90,8 @@ class TrackScheduler {
             const currentStep = globalStepAtTime % this.triggerPattern.length;
             const triggerIndex = this.triggerSteps.indexOf(currentStep);
 
-
             if (triggerIndex !== -1) {
+                
                 const globalStepAtTime = this.sequencer.clock.getGlobalStepAtTime(this.nextScheduleTime);
                 this.scheduleNote(this.nextScheduleTime, globalStepAtTime, this.durations[triggerIndex]);
             }
@@ -103,7 +103,6 @@ class TrackScheduler {
 
     scheduleNote(time, globalStep, stepCount) {
         if (!this.shouldTriggerNote()) return;
-
         
         const noteIndex = this.getNoteIndex();
         const noteSettings = this.track.settings.noteSeries[noteIndex];
@@ -113,8 +112,9 @@ class TrackScheduler {
             const speedMultiplier = this.track.settings.speedMultiplier;
             const adjustedStepCount = stepCount * speedMultiplier;
             const { noteStartTime, noteDuration } = this.calculateNoteTimings(time, globalStep, adjustedStepCount);
-
-            if ((this.track.settings.arpMode === ARP_MODES.OFF && noteSettings.arpMode === ARP_MODES.USE_TRACK)
+            
+            if ((this.track.settings.arpMode === ARP_MODES.OFF 
+                && (noteSettings.arpMode === ARP_MODES.USE_TRACK || noteSettings.arpMode === undefined))
                 || noteSettings.arpMode === ARP_MODES.OFF) {
                 this.scheduleChord(noteStartTime, noteDuration, globalStep, noteSettings, noteIndex);
             } else {
@@ -148,14 +148,7 @@ class TrackScheduler {
             noteDuration -= this.sequencer.tickDuration;
         }
     
-        const appliedGrooveAndSwing = this.grooveManager.applyGrooveAndSwing(
-            time,
-            {},
-            globalStep,
-            noteDuration
-        );
-    
-        return { noteStartTime: appliedGrooveAndSwing.time, noteDuration: appliedGrooveAndSwing.duration };
+        return { noteStartTime: time, noteDuration: noteDuration };
     }
 
     pitchForProgression(pitch, adjustedTime) {
@@ -196,7 +189,7 @@ class TrackScheduler {
                 if (this.track.settings.conformNotes) {
                     pitch = this.pitchForProgression(pitch, adjustedTime);
                 }             
-                if (Math.random() * 100 < noteSettings.probability) {
+                if (Math.random() * 100 < noteSettings.probability || noteSettings.probability === undefined) {
                     const { time: adjustedTime, velocity: adjustedVelocity } = this.grooveManager.applyGrooveAndSwing(
                         time,
                         noteSettings,
@@ -225,7 +218,9 @@ class TrackScheduler {
         const { arpMode, channel, wonkyArp } = this.track.settings;
         let playMultiplier = this.track.settings.playMultiplier;
 
-        if (noteSettings.arpMode !== ARP_MODES.OFF && noteSettings.arpMode !== ARP_MODES.USE_TRACK) {
+        if (noteSettings.arpMode !== ARP_MODES.OFF 
+            && noteSettings.arpMode !== ARP_MODES.USE_TRACK 
+            && noteSettings.playMultiplier !== undefined) {
             playMultiplier = noteSettings.playMultiplier;
         }
 
@@ -245,7 +240,7 @@ class TrackScheduler {
 
         for (let i = 0; i < nrSteps; i++) {
             const shouldPlay = this.checkNoteSeriesCounter(noteIndex)
-                && Math.random() * 100 < noteSettings.probability;
+                && (Math.random() * 100 < noteSettings.probability || noteSettings.probability === undefined);
 
             if (shouldPlay) {
                 const noteStartTime = time + (i * arpStepDuration);
@@ -334,6 +329,9 @@ class TrackScheduler {
 
     checkNoteSeriesCounter(noteIndex) {
         const noteSettings = this.track.settings.noteSeries[noteIndex];
+        if (noteSettings.aValue === undefined) {
+            return true;
+        }
         return this.noteSeriesCounter[noteIndex] === noteSettings.aValue;
     }
 
@@ -358,7 +356,6 @@ class TrackScheduler {
         if (pitchSpan > 0) {
             chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
         }
-    
         return chord;
     }
 

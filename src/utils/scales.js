@@ -71,7 +71,6 @@ function generateChord(rootNote, options = {}) {
     if (pitchSpan !== 0) {
         chord = chord.map(note => note + Math.floor(Math.random() * (pitchSpan + 1)));
     }
-
     return chord;
 }
 

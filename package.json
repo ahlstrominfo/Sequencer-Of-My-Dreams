@@ -17,7 +17,8 @@
   "author": "ahlstrominfo aka Mattias Ahlström",
   "license": "MIT",
   "dependencies": {
-    "easymidi": "^3.1.0"
+    "easymidi": "^3.1.0",
+    "jest": "^29.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

@@ -4,6 +4,7 @@ module.exports = [
   js.configs.recommended,
   {
     files: ["**/*.js"],
+    ignores: ["**/test/**"],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: "module",

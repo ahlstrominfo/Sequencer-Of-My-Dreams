@@ -29,7 +29,7 @@ class GrooveManager {
 
     getGrooveStep(globalStep) {
         if (this.groove.length === 0) {
-            return null;
+            return false;
         }
         return this.groove[globalStep % this.groove.length];
     }
@@ -39,8 +39,6 @@ class GrooveManager {
         
         let timeOffsetPercentage = 0;
         let velocityOffsetPercentage = 0;
-
-        // this.log && console.log(`Applying groove for globalStep: ${globalStep}, grooveStep: ${JSON.stringify(grooveStep)}`);
 
         if (grooveStep) {
             // Apply groove step-by-step
@@ -60,8 +58,6 @@ class GrooveManager {
 
         // Adjust velocity based on track volume
         adjustedVelocity = Math.max(MIDI_MIN_VELOCITY, Math.min(MIDI_MAX_VELOCITY, adjustedVelocity * (trackVolume / 100)));
-
-        // this.log && console.log(`Adjusted time: ${adjustedTime}, velocity: ${adjustedVelocity}`);
 
         return { 
             time: adjustedTime, 
