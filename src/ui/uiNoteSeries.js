@@ -141,6 +141,26 @@ class UINoteSeries extends UITableView {
                     }
                 },
                 {
+                    name: 'useMaxDur',
+                    value: () => series.useMaxDuration ? 'Yes' : 'No',
+                    enter: () => {
+                        series.useMaxDuration = !series.useMaxDuration;
+                        this.updateTrackSettingsAndReload({ noteSeries: track.settings.noteSeries });
+                    }
+                },
+                {
+                    name: 'Mx Drtn Fctr',
+                    value: () => series.maxDurationFactor,
+                    handle: (delta) => {
+                        if (series.maxDurationFactor === undefined || series.maxDurationFactor === null) {
+                            this.terminalUI.logger.log(series.maxDurationFactor);
+                            series.maxDurationFactor = 1;
+                        }
+                        series.maxDurationFactor = findMultiplierPreset(series.maxDurationFactor, delta);
+                        this.updateTrackSettingsAndReload({ noteSeries: track.settings.noteSeries });
+                    }
+                },                
+                {
                     name: 'Del',
                     value: 'X',
                     enter: () => {

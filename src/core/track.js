@@ -7,7 +7,7 @@ class Track {
     constructor(initialSettings = {}, sequencer, trackId) {
         this.sequencer = sequencer;
         this.trackId = trackId;
-        this.settings = {
+        this.defaultSettings = {
             channel: 1,
             steps: 16,
             noteSeries: [{
@@ -24,6 +24,8 @@ class Track {
                 arpMode: ARP_MODES.USE_TRACK,
                 playMultiplier: 1,
                 wonkyArp: false,
+                maxDurationFactor: 1,
+                useMaxDuration: false,
             }],
             triggerType: TRIGGER_TYPES.INIT,
             triggerSettings: {
@@ -50,6 +52,10 @@ class Track {
             isActive: true,
             volume: 100,
             tieNoteSeriestoPattern: false,
+        };
+
+        this.settings = {
+            ...this.defaultSettings,
             ...initialSettings
         };
         this.trackScheduler = new TrackScheduler(this, this.sequencer);
@@ -81,6 +87,8 @@ class Track {
                 bValue: Math.max(1, Math.min(8, noteSeries.bValue)),
                 arpMode: Math.max(0, Math.min(Object.keys(ARP_MODES).length - 1, noteSeries.arpMode)),
                 spread: Math.max(-9, Math.min(9, noteSeries.spread)),
+                maxDurationFactor: noteSeries.maxDurationFactor === undefined ? 1 : noteSeries.maxDurationFactor,
+                useMaxDuration: noteSeries.useMaxDuration,
                 playMultiplier: noteSeries.playMultiplier,
                 wonkyArp: noteSeries.wonkyArp,
             }));
