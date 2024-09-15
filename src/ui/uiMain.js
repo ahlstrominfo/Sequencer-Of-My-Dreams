@@ -48,12 +48,24 @@ class UIMain extends UIBase {
     openView() {
         this.editCol = 0;
         if (this.terminalUI.currentTrack !== null) {
-             this.editCol = this.terminalUI.currentTrack;
+             this.editCol = this.terminalUI.currentTrack + 1; // Adjusted for Sequencer column
         }
 
         this.rows = [];
 
-        const labelCols = this.sequencer.tracks.map((track, index) => {
+        // Create Sequencer column
+        const sequencerColumn = {
+            value: () => {
+                return 'S';
+            },
+            enter: () => {
+                this.terminalUI.currentTrack = null;
+                this.terminalUI.setView('sequencerSettings');
+            }
+        };
+
+        // Labels row
+        const labelCols = [sequencerColumn, ...this.sequencer.tracks.map((track, index) => {
             return {
                 value: () => {
                     return this.trackLabels[index];
@@ -63,17 +75,7 @@ class UIMain extends UIBase {
                     this.terminalUI.setView('track');
                 }
             };
-        });
-
-        labelCols.push({
-            value: () => {
-                return 'S';
-            },
-            enter: () => {
-                this.terminalUI.currentTrack = null;
-                this.terminalUI.setView('sequencerSettings');
-            }
-        });
+        })];
 
         this.rows.push({
             cols: labelCols,
@@ -83,17 +85,19 @@ class UIMain extends UIBase {
             colRender: this.colRender
         });
 
+        // Active notes row
         this.rows.push({
-            cols: this.sequencer.tracks.map((track) => {
-                return {
+            cols: [
+                { value: () => ' ' }, // Placeholder for Sequencer column
+                ...this.sequencer.tracks.map((track) => ({
                     value: () => {
                         return track.trackScheduler.getActiveNotes().length > 0 ? '■' : '□';
                     },
                     enter: () => {
                         track.updateSettings({ isActive: !track.settings.isActive });
                     }
-                };
-            }),
+                }))
+            ],
             layout: 1,
             colsLayout: 0,
             rowRender: this.rowRender,
@@ -101,30 +105,28 @@ class UIMain extends UIBase {
             selectable: false
         });   
 
-
-        const activeCols = this.sequencer.tracks.map((track) => {
-            return {
+        // Active tracks row
+        const activeCols = [
+            {
+                value: () => {
+                    return this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
+                },
+                enter: () => {
+                    this.bpmCalculator.addTimestamp();
+                    if (this.bpmCalculator.getCurrentBPM()) {
+                        this.sequencer.updateSettings({ bpm: this.bpmCalculator.getCurrentBPM() });
+                    }
+                }
+            },
+            ...this.sequencer.tracks.map((track) => ({
                 value: () => {
                     return track.settings.isActive ? '■' : '□';
                 },
                 enter: () => {
                     track.updateSettings({ isActive: !track.settings.isActive });
                 }
-            };
-        });
-
-        activeCols.push({
-            value: () => {
-                return this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
-            },
-            enter: () => {
-                this.bpmCalculator.addTimestamp();
-                if (this.bpmCalculator.getCurrentBPM()) {
-                    this.sequencer.updateSettings({ bpm: this.bpmCalculator.getCurrentBPM() });
-                }
-                
-            }
-        });
+            }))
+        ];
 
         this.rows.push({
             cols: activeCols,
@@ -134,8 +136,21 @@ class UIMain extends UIBase {
             colRender: this.colRender
         });   
         
-        const volumeCols = this.sequencer.tracks.map((track) => {
-            return {
+        // Volume row
+        const volumeCols = [
+            {
+                value: () => {
+                    return this.sequencer.isPlaying ? '▶' : '■';
+                },
+                enter: () => {
+                    if (this.sequencer.isPlaying) {
+                        this.sequencer.stop();
+                    } else {
+                        this.sequencer.start();
+                    }
+                }
+            },
+            ...this.sequencer.tracks.map((track) => ({
                 value: () => {
                     return this.getBoxDrawingCharacter(track.settings.volume);
                 },
@@ -144,21 +159,8 @@ class UIMain extends UIBase {
                     newVolume = newVolume + (delta * 10);
                     track.updateSettings({ volume: newVolume });
                 }
-            };
-        });
-
-        volumeCols.push({
-            value: () => {
-                return this.sequencer.isPlaying ? '▶' : '■';
-            },
-            enter: () => {
-                if (this.sequencer.isPlaying) {
-                    this.sequencer.stop();
-                } else {
-                    this.sequencer.start();
-                }
-            }
-        });
+            }))
+        ];
 
         this.rows.push({
             cols: volumeCols,
@@ -168,21 +170,34 @@ class UIMain extends UIBase {
             colRender: this.colRender,
         });
         
-        const activeStateRows = this.sequencer.settings.activeStates.map((track, index) => {
-            return {
+        // Active states row
+        const activeStateRows = [
+            this.createProgressionChangeColumn(),
+            ...this.sequencer.settings.activeStates.map((track, index) => ({
                 value: () => {
                     return index === this.sequencer.settings.currentActiveState ? '■' : '□';
                 },
                 enter: () => {
                     this.sequencer.updateActiveState(index);
                 },
-            };
-        });
+            }))
+        ];
 
+        this.rows.push({
+            cols: activeStateRows,
+            layout: 1,
+            colsLayout: 0,
+            rowRender: this.rowRender,
+            colRender: this.colRender,            
+        });
+    }
+
+
+    createProgressionChangeColumn() {
         this.progressionChangeNumber = null;
         this.progressionChangeBlinking = false;
         this.progressionChangeBlinkingState = true;
-        activeStateRows.push({
+        return {
             value: () => {
                 this.progressionChangeBlinkingState = !this.progressionChangeBlinkingState;
                 if (this.progressionChangeBlinking && this.progressionChangeBlinkingState) {
@@ -212,15 +227,7 @@ class UIMain extends UIBase {
                 }
                 this.isEditingField = !this.isEditingField;
             }
-        });
-
-        this.rows.push({
-            cols: activeStateRows,
-            layout: 1,
-            colsLayout: 0,
-            rowRender: this.rowRender,
-            colRender: this.colRender,            
-        });
+        };
     }
 }
 
