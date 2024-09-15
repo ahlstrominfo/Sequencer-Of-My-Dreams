@@ -11,14 +11,20 @@ class MidiCommunicator {
     }
 
     queueNoteEvent(event) {
-        this.eventQueue.push(event);
-        this.eventQueue.sort((a, b) => a.time - b.time);   
+        const similarEventsInTheFuture = this.eventQueue.filter(e => e.type === 'note' && e.message.note === event.message.note 
+            && e.message.channel === event.message.channel
+            && Math.round(e.time) === Math.round(event.time));
+
+        if (similarEventsInTheFuture.length === 0) {
+            this.eventQueue.push(event);
+            this.eventQueue.sort((a, b) => a.time - b.time);   
+        }
     }
 
     processEventQueue(currentTime) {
         while (this.eventQueue.length > 0 && this.eventQueue[0].time <= currentTime) {
             const event = this.eventQueue.shift();
-            
+
             if (event.type === 'note') {
                 if (this.sequencer.tracks[event.trackId].settings.isActive) {
                     this.sendMidiMessage({ type: 'noteon', message: event.message });
@@ -87,6 +93,10 @@ class MidiCommunicator {
     sendStop() {
         this.sendSongPositionPointer();
         this.output.send('stop');
+    }
+
+    clearQueue() {
+        this.eventQueue = [];
     }
 
     stopAllActiveNotes() {

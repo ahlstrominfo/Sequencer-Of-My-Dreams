@@ -86,8 +86,8 @@ class Sequencer {
 
     start() {
         if (!this.isPlaying) {
+            this.clock.reset();
             if (this.settings.song.active) {
-                this.clock.reset();
                 this.planSong();
             }
 
@@ -114,6 +114,7 @@ class Sequencer {
             this.clock.stop();
             this.midi.sendStop();
             this.midi.stopAllActiveNotes();
+            this.midi.clearQueue();
         }
     }
     

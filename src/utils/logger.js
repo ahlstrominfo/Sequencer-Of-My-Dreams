@@ -11,7 +11,7 @@ class Logger {
     
     log(message) {
         const timestamp = new Date().toISOString();
-        this.logs.unshift({ message, timestamp });
+        this.logs.push({ message, timestamp });
     }
 
     clear() {
