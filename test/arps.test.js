@@ -60,8 +60,9 @@ describe('generateArpeggioPattern', () => {
       });
     
       test('INSIDE_OUT mode', () => {
-        expect(generateArpeggioPattern(3, ARP_MODES.INSIDE_OUT)).toEqual([1, 2, 0]);
-        expect(generateArpeggioPattern(5, ARP_MODES.INSIDE_OUT)).toEqual([2, 3, 1, 4, 0]);
+        expect(generateArpeggioPattern(3, ARP_MODES.INSIDE_OUT)).toEqual([1, 0, 2]);
+        expect(generateArpeggioPattern(4, ARP_MODES.INSIDE_OUT)).toEqual([2,1,3,0]);
+        expect(generateArpeggioPattern(5, ARP_MODES.INSIDE_OUT)).toEqual([2, 1, 3, 0, 4]);
       });
     
       test('CONVERGE mode', () => {

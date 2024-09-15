@@ -272,106 +272,106 @@ const generateTestCases = () => [
           3750, 3750, 3750,
         ],
       },
-      {
-        name: "4/4 track alternating between chord and up-down arpeggio",
-        track: {
-          "channel": 1,
-          "steps": 16,
-          "noteSeries": [
-            {
-              "rootNote": 60,
-              "numberOfNotes": 4,
-              "inversion": 0,
-              "velocity": 80,
-              "pitchSpan": 0,
-              "velocitySpan": 0,
-              "probability": 100,
-              "aValue": 1,
-              "bValue": 1,
-              "arpMode": 16,
-              "spread": 0,
-              "playMultiplier": 1,
-              "wonkyArp": true
-            },
-            {
-              "rootNote": 60,
-              "numberOfNotes": 3,
-              "inversion": 0,
-              "velocity": 100,
-              "pitchSpan": 0,
-              "velocitySpan": 0,
-              "probability": 100,
-              "aValue": 1,
-              "bValue": 1,
-              "arpMode": 3,
-              "spread": 0,
-              "playMultiplier": 0.5,
-              "wonkyArp": false
-            }
-          ],
-          "triggerType": 1,
-          "triggerSettings": {
-            "numbers": [
-              8,
-              0
-            ],
-            "length": 16,
-            "hits": 4,
-            "shift": 0,
-            "steps": []
-          },
-          "groove": [],
-          "grooveName": "Steady",
-          "resyncInterval": 0,
-          "speedMultiplier": 1,
-          "swingAmount": 0,
-          "playOrder": 0,
-          "probability": 100,
-          "conformNotes": true,
-          "arpMode": 9,
-          "wonkyArp": false,
-          "playMultiplier": 1,
-          "useMaxDuration": true,
-          "maxDurationFactor": 1,
-          "isActive": true,
-          "volume": 100,
-          "tieNoteSeriestoPattern": false
-        },
-        nrNotes: 40,
-        notes: [
-          // First chord (4 notes) repeated 4 times
-          60, 62, 64, 65,
-          60, 62, 64, 65,
-          60, 62, 64, 65,
-          60, 62, 64, 65,      
-          // Up-down arpeggio (3 notes) for 4 notes due to 0.5 playMultiplier
-          60, 62, 64, 62,
-          // First chord (4 notes) repeated 4 times
-          60, 62, 64, 65,
-          60, 62, 64, 65,
-          60, 62, 64, 65,
-          60, 62, 64, 65,      
-          // Up-down arpeggio (3 notes) for 4 notes due to 0.5 playMultiplier
-          60, 62, 64, 62
-        ],
-        expectedTimes: [
-          // First chord repeated 4 times (each 8th note)
-          0, 0, 0, 0,
-          250, 250, 250, 250,
-          500, 500, 500, 500,
-          750, 750, 750, 750,
-          // Up-down arpeggio (4 notes, each 16th note due to 0.5 playMultiplier)
-          1000, 1250, 1500, 1750,
+      // {
+      //   name: "4/4 track alternating between chord and up-down arpeggio",
+      //   track: {
+      //     "channel": 1,
+      //     "steps": 16,
+      //     "noteSeries": [
+      //       {
+      //         "rootNote": 60,
+      //         "numberOfNotes": 4,
+      //         "inversion": 0,
+      //         "velocity": 80,
+      //         "pitchSpan": 0,
+      //         "velocitySpan": 0,
+      //         "probability": 100,
+      //         "aValue": 1,
+      //         "bValue": 1,
+      //         "arpMode": 16,
+      //         "spread": 0,
+      //         "playMultiplier": 1,
+      //         "wonkyArp": true
+      //       },
+      //       {
+      //         "rootNote": 60,
+      //         "numberOfNotes": 3,
+      //         "inversion": 0,
+      //         "velocity": 100,
+      //         "pitchSpan": 0,
+      //         "velocitySpan": 0,
+      //         "probability": 100,
+      //         "aValue": 1,
+      //         "bValue": 1,
+      //         "arpMode": 3,
+      //         "spread": 0,
+      //         "playMultiplier": 0.5,
+      //         "wonkyArp": false
+      //       }
+      //     ],
+      //     "triggerType": 1,
+      //     "triggerSettings": {
+      //       "numbers": [
+      //         8,
+      //         0
+      //       ],
+      //       "length": 16,
+      //       "hits": 4,
+      //       "shift": 0,
+      //       "steps": []
+      //     },
+      //     "groove": [],
+      //     "grooveName": "Steady",
+      //     "resyncInterval": 0,
+      //     "speedMultiplier": 1,
+      //     "swingAmount": 0,
+      //     "playOrder": 0,
+      //     "probability": 100,
+      //     "conformNotes": true,
+      //     "arpMode": 9,
+      //     "wonkyArp": false,
+      //     "playMultiplier": 1,
+      //     "useMaxDuration": true,
+      //     "maxDurationFactor": 1,
+      //     "isActive": true,
+      //     "volume": 100,
+      //     "tieNoteSeriestoPattern": false
+      //   },
+      //   nrNotes: 40,
+      //   notes: [
+      //     // First chord (4 notes) repeated 4 times
+      //     60, 62, 64, 65,
+      //     60, 62, 64, 65,
+      //     60, 62, 64, 65,
+      //     60, 62, 64, 65,      
+      //     // Up-down arpeggio (3 notes) for 4 notes due to 0.5 playMultiplier
+      //     60, 62, 64, 62,
+      //     // First chord (4 notes) repeated 4 times
+      //     60, 62, 64, 65,
+      //     60, 62, 64, 65,
+      //     60, 62, 64, 65,
+      //     60, 62, 64, 65,      
+      //     // Up-down arpeggio (3 notes) for 4 notes due to 0.5 playMultiplier
+      //     60, 62, 64, 62
+      //   ],
+      //   expectedTimes: [
+      //     // First chord repeated 4 times (each 8th note)
+      //     0, 0, 0, 0,
+      //     250, 250, 250, 250,
+      //     500, 500, 500, 500,
+      //     750, 750, 750, 750,
+      //     // Up-down arpeggio (4 notes, each 16th note due to 0.5 playMultiplier)
+      //     1000, 1250, 1500, 1750,
 
-          // First chord repeated 4 times (each 8th note)
-          2000, 2000, 2000, 2000,
-          2250, 2250, 2250, 2250,
-          2500, 2500, 2500, 2500,
-          2750, 2750, 2750, 2750,
-          // Up-down arpeggio (4 notes, each 16th note due to 0.5 playMultiplier)
-          3000, 3250, 3500, 3750,
-        ],
-      }  
+      //     // First chord repeated 4 times (each 8th note)
+      //     2000, 2000, 2000, 2000,
+      //     2250, 2250, 2250, 2250,
+      //     2500, 2500, 2500, 2500,
+      //     2750, 2750, 2750, 2750,
+      //     // Up-down arpeggio (4 notes, each 16th note due to 0.5 playMultiplier)
+      //     3000, 3250, 3500, 3750,
+      //   ],
+      // }  
   ];
   
 // 

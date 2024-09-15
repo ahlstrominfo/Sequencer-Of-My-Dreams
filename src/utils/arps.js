@@ -79,10 +79,13 @@ function generateArpeggioPattern(numberOfNotes, arpMode) {
         case ARP_MODES.INSIDE_OUT:
             {
                 const mid = Math.floor(numberOfNotes / 2);
-                for (let i = 0; i < Math.ceil(numberOfNotes / 2); i++) {
-                    result.push(mid - i, mid + i + 1);
+                for (let i = 0; i < numberOfNotes; i++) {
+                    if (i % 2 === 0) {
+                        result.push(mid + Math.floor(i / 2));
+                    } else {
+                        result.push(mid - Math.ceil(i / 2));
+                    }
                 }
-                if (numberOfNotes % 2 !== 0) result.pop();
                 result = result.filter(n => n >= 0 && n < numberOfNotes);
             }
             break;

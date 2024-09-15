@@ -217,11 +217,10 @@ class TrackScheduler {
         const { channel, wonkyArp } = this.track.settings;
         let playMultiplier = this.track.settings.playMultiplier;
 
-        let arpMode = noteSettings.arpMode;
+        let arpMode = this.track.settings.arpMode;
         if (noteSettings.arpMode !== ARP_MODES.USE_TRACK) {
             arpMode = noteSettings.arpMode;
         }
-
 
         if (noteSettings.arpMode !== ARP_MODES.OFF 
             && noteSettings.arpMode !== ARP_MODES.USE_TRACK 
@@ -235,7 +234,7 @@ class TrackScheduler {
         let nrSteps = Math.floor(duration / arpStepDuration);
         const arpPattern = generateArpeggioPattern(
             noteSettings.numberOfNotes, 
-            ARP_MODES.USE_TRACK === noteSettings.arpMode ? arpMode : noteSettings.arpMode
+            arpMode
         );
 
         if (wonkyArp || noteSettings.wonkyArp) {
