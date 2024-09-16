@@ -15,7 +15,7 @@
     "sequencer"
   ],
   "author": "ahlstrominfo aka Mattias Ahlström",
-  "license": "MIT",
+  "license": "Sequencer Of My Dreams © 2024 by Mattias Ahlström is licensed under CC BY-NC 4.0 ",
   "dependencies": {
     "easymidi": "^3.1.0",
     "jest": "^29.7.0"
