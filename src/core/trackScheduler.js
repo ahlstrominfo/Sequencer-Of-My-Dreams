@@ -54,11 +54,18 @@ class TrackScheduler {
         this.triggerPattern = triggerPatternFromSettings(this.track.settings);
         this.triggerSteps = this.triggerPattern.triggerSteps;
         this.durations = this.triggerPattern.durations;
+        this.currentStep = 0;
+        this.currentNoteIndex = 0;
     }
 
     resetTrackState() {
         this.currentStep = 0;
-        this.nextScheduleTime = this.sequencer.clock.getCurrentTime();
+        this.currentNoteIndex = 0;
+        this.nextScheduleTime = 0;
+        this.activeNotes = new Set();
+        this.noteSeriesCounter = new Array(this.track.settings.noteSeries.length).fill(1);
+        this.pendingResync = false;
+        this.pendingResyncBar = false;
     }
     
     resyncTrack() {
@@ -127,7 +134,7 @@ class TrackScheduler {
     getNoteIndex() {
         if (this.track.settings.tieNoteSeriestoPattern) {
             const currentPatternIndex = this.triggerSteps.indexOf(this.currentStep);
-            return currentPatternIndex % this.track.settings.noteSeries.length;
+            return currentPatternIndex ===-1 ? 0 : currentPatternIndex % this.track.settings.noteSeries.length;
         }
         return this.currentNoteIndex;
     }

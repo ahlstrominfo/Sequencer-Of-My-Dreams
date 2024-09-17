@@ -86,17 +86,21 @@ class Sequencer {
 
     start() {
         if (!this.isPlaying) {
+            // Always reset the clock when starting
             this.clock.reset();
+    
+            // Reset all tracks
+            this.tracks.forEach(track => {
+                track.trackScheduler.resetTrackState();
+            });
+    
+            // Plan the song if active
             if (this.settings.song.active) {
                 this.planSong();
             }
-
+    
             this.isPlaying = true;
-
-            this.tracks.forEach(track => {
-                track.trackScheduler.resyncTrack();
-            });
-
+    
             if (!this.loopIsRunning) {
                 this.scheduleLoop();
             }
@@ -115,6 +119,11 @@ class Sequencer {
             this.midi.sendStop();
             this.midi.stopAllActiveNotes();
             this.midi.clearQueue();
+    
+            // Reset all tracks
+            this.tracks.forEach(track => {
+                track.trackScheduler.resetTrackState();
+            });
         }
     }
     
@@ -281,7 +290,9 @@ class Sequencer {
             const lookAheadEnd = currentTime + this.scheduleAheadTime;
     
             this.tracks.forEach(track => {
-                track.trackScheduler.scheduleEvents(lookAheadEnd);
+                if (track.trackScheduler.nextScheduleTime <= lookAheadEnd) {
+                    track.trackScheduler.scheduleEvents(lookAheadEnd);
+                }
             });
             this.midi.processEventQueue(currentTime);
         }         
