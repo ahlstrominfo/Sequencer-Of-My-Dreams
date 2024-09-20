@@ -1,7 +1,10 @@
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
+
+const TrackNotes = require('./trackNotes');
 class TrackPlan {
     constructor(track, sequencer) {
         this.track = track;
+        this.trackNotes = new TrackNotes(track);
         this.sequencer = sequencer;
         this.currentTriggerStep = 0;
         this.setupTickerListeners();
@@ -34,29 +37,34 @@ class TrackPlan {
     planEvents(position) {
         const { planStartPulse, planEndPulse } = position;
         const speedMultiplier = this.track.settings.speedMultiplier;
-
-        // Get pulses per event from Ticker
         const pulsesPerEvent = this.sequencer.ticker.getPulsesForSpeedMultiplier(speedMultiplier);
 
         for (let pulse = planStartPulse; pulse < planEndPulse; pulse++) {
             if (this.shouldTriggerEventAtPulse(pulse, pulsesPerEvent)) {
-                if (this.hasTriggerStepAt() && this.checkTrackProbability()) {
+                if (this.hasTriggerStepAt()) {
                     this.scheduleEvent(pulse);
+                    this.trackNotes.scheduleNotes({
+                        startPulse: pulse,
+                        endPulse: pulse + this.durationForTriggerStep(),
+                        maxDuration: this.durationForTriggerStep(), 
+                        defaultDuration: pulsesPerEvent,
+                        currentTriggerStep: this.getTriggerStep(),
+                    });
                 }
                 this.updateCurrentTriggerStep();
             }
         }
     }
 
-    checkTrackProbability() {
-        return Math.random() * 100 < this.track.settings.probability;
-    }
-
     durationForTriggerStep() {
-        if (this.getTriggerStep() === -1) {
+        const triggerStep = this.getTriggerStep();
+        if (triggerStep === -1) {
             return 0;
         }
-        return this.durations[this.getTriggerStep()];
+        const stepDuration = this.durations[triggerStep];
+        const speedMultiplier = this.track.settings.speedMultiplier;
+        const pulsesPerSixteenth = this.sequencer.ticker.pulsesPerSixteenth;
+        return Math.round((stepDuration * pulsesPerSixteenth) / speedMultiplier);
     }
 
     hasTriggerStepAt() {
@@ -133,6 +141,9 @@ class TrackPlan {
             );
         }
     }
+
+
+
 }
 
 module.exports = TrackPlan;
