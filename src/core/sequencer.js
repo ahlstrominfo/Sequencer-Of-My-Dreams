@@ -328,6 +328,7 @@ class Sequencer {
     
     gracefulShutdown() {
         this.stop();
+        this.ticker.sendAllEventsNoteOff();
         this.midi.close();
     }
 

@@ -19,6 +19,7 @@ class TrackNotes {
 
     scheduleNotes({startPulse, maxDuration, defaultDuration, currentTriggerStep}) {
         if (this.checkTrackProbability()) {
+            const swingOffset = this.calculateSwingOffset(startPulse);
             const { bar, beat } = this.ticker.getPositionFromPulse(startPulse);
             const trackSettings = this.track.settings;
 
@@ -40,7 +41,7 @@ class TrackNotes {
                             note = this.pitchForProgression(note, bar, beat);
                         }
                         
-                        this.scheduleNote(note, trackSettings.channel - 1, startPulse, startPulse + defaultDuration, noteSettings.velocity);
+                        this.scheduleNote(note, trackSettings.channel - 1, startPulse + swingOffset, (startPulse + defaultDuration) - swingOffset, noteSettings.velocity);
                     }
                 });
             }
@@ -96,6 +97,22 @@ class TrackNotes {
         }
     }
 
+    calculateSwingOffset(pulse) {
+        // Determine if this is an even or odd 16th note
+        const sixteenthIndex = Math.floor(pulse / this.ticker.pulsesPerSixteenth);
+        
+        // Only apply swing to odd 16th notes
+        if (sixteenthIndex % 2 === 1) {
+            // Calculate the swing offset
+            // swingAmount is a percentage (0-100) of a full 16th note
+            const swingOffset = Math.round(this.ticker.pulsesPerSixteenth * (this.track.settings.swingAmount / 100));
+            
+            return swingOffset;
+        }
+        
+        return 0;
+    }
+    
     checkNoteSeriesCounter(noteIndex) {
         const noteSettings = this.track.settings.noteSeries[noteIndex];
         if (noteSettings.aValue === undefined) {

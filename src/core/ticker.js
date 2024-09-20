@@ -95,6 +95,13 @@ class Ticker {
         }
     }
 
+    sendAllEventsNoteOff() {
+        this.scheduleEvent.filter(event => event.data.type === 'noteOff').forEach(event => {
+            event.callback(this.getPositionFromPulse(event.pulse));
+        });
+    }
+
+
     pulse() {
         if (!this.isRunning) return;
 
