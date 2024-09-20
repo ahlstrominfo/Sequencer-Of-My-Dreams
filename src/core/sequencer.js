@@ -5,6 +5,7 @@ const SequenceScheduler = require('./sequenceScheduler');
 const { Track } = require('./track');
 const { conformNoteToScale, SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
+const Ticker = require('./ticker');
 
 class Sequencer {
     constructor(bpm = 120, ppq = 96, realTimeKeeper) {
@@ -31,6 +32,7 @@ class Sequencer {
         this.clock.updateMidiClockInterval();
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
+        this.ticker = new Ticker(bpm, this.settings.timeSignature);
 
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
         this.tickDuration = 0; //this.clock.calculateTickDuration();
@@ -86,6 +88,8 @@ class Sequencer {
 
     start() {
         if (!this.isPlaying) {
+            this.ticker.start();
+
             // Always reset the clock when starting
             this.clock.reset();
     
@@ -112,6 +116,7 @@ class Sequencer {
 
     stop() {
         if (this.isPlaying) {
+            this.ticker.stop();
             this.isPlaying = false;
             this.beatCounter = 0;
             this.scheduler.clearEvents();
@@ -254,6 +259,7 @@ class Sequencer {
             this.settings.bpm = Math.min(300, Math.max(30, this.settings.bpm));
             this.clock.setBPM(this.settings.bpm);
             this.tickDuration = this.clock.calculateTickDuration();
+            this.ticker.setBPM(this.settings.bpm);
         }
         if (this.settings.timeSignature !== oldTimeSignature) {
             this.clock.setTimeSignature(...this.settings.timeSignature);
@@ -291,7 +297,7 @@ class Sequencer {
     
             this.tracks.forEach(track => {
                 if (track.trackScheduler.nextScheduleTime <= lookAheadEnd) {
-                    track.trackScheduler.scheduleEvents(lookAheadEnd);
+                   // track.trackScheduler.scheduleEvents(lookAheadEnd);
                 }
             });
             this.midi.processEventQueue(currentTime);
