@@ -15,6 +15,8 @@ class TrackPlan {
         if ('triggerType' in newSettings || 'triggerSettings' in newSettings || 'resyncInterval' in newSettings) {
             this.setTriggerPattern();
         }
+
+        this.trackNotes.onTrackSettingsUpdate(newSettings);
     }
 
     setTriggerPattern() {
@@ -42,14 +44,15 @@ class TrackPlan {
         for (let pulse = planStartPulse; pulse < planEndPulse; pulse++) {
             if (this.shouldTriggerEventAtPulse(pulse, pulsesPerEvent)) {
                 if (this.hasTriggerStepAt()) {
-                    this.scheduleEvent(pulse);
-                    this.trackNotes.scheduleNotes({
-                        startPulse: pulse,
-                        endPulse: pulse + this.durationForTriggerStep(),
-                        maxDuration: this.durationForTriggerStep(), 
-                        defaultDuration: pulsesPerEvent,
-                        currentTriggerStep: this.getTriggerStep(),
-                    });
+                    if (this.track.settings.isActive) {
+                        this.trackNotes.scheduleNotes({
+                            startPulse: pulse,
+                            endPulse: pulse + this.durationForTriggerStep(),
+                            maxDuration: this.durationForTriggerStep(), 
+                            defaultDuration: pulsesPerEvent,
+                            currentTriggerStep: this.getTriggerStep(),
+                        });
+                    }
                 }
                 this.updateCurrentTriggerStep();
             }
@@ -110,7 +113,7 @@ class TrackPlan {
             
             // this.sequencer.logger.log(`I'm at currentPulse: ${this.sequencer.ticker.getPosition().currentPulse} and planning for: ${plannedPulse}`);   
             this.sequencer.ticker.scheduleEvent(
-                { pulse: plannedPulse },
+                plannedPulse,
                 (position) => {
                     
                         // this.sequencer.logger.log(`Now I run a planned event at ${position.currentPulse}`); // ${JSON.stringify(position)}

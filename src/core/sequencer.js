@@ -32,7 +32,7 @@ class Sequencer {
         this.clock.updateMidiClockInterval();
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
-        this.ticker = new Ticker(bpm, this.settings.timeSignature);
+        this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
         this.tickDuration = 0; //this.clock.calculateTickDuration();

@@ -1,7 +1,7 @@
 const RealTimeKeeper = require('./realTimeKeeper');
 
 class Ticker {
-    constructor(bpm = 120, timeSignature = [4, 4]) {
+    constructor(bpm = 120, timeSignature = [4, 4], sequencer) {
         this.bpm = bpm;
         this.timeSignature = timeSignature;
         this.isRunning = false;
@@ -13,6 +13,7 @@ class Ticker {
         this.pulsesPerBeat = this.pulsesPerSixteenth * this.sixteenthsPerBeat;
         this.timeKeeper = new RealTimeKeeper();
         this.lastPulseTime = 0;
+        this.sequencer = sequencer;
     }
 
     start() {
@@ -71,29 +72,14 @@ class Ticker {
         }
     }
 
-    scheduleEvent({ bar, beat, sixteenth, pulse }, callback, data = {}) {
-        let totalPulses = 0;
-
-        if (bar !== undefined) {
-            totalPulses += bar * this.timeSignature[0] * this.pulsesPerBeat;
-        }
-        if (beat !== undefined) {
-            totalPulses += beat * this.pulsesPerBeat;
-        }
-        if (sixteenth !== undefined) {
-            totalPulses += sixteenth * this.pulsesPerSixteenth;
-        }
-        if (pulse !== undefined) {
-            totalPulses += pulse;
-        }
-
-        if (totalPulses < this.currentPulse) {
-            console.warn('Attempted to schedule an event in the past. Event will not be scheduled.');
+    scheduleEvent(pulse, callback, data = {}) {
+        if (pulse < this.currentPulse) {
+            this.sequencer.logger.log('Attempted to schedule an event in the past. Event will not be scheduled.');
             return;
         }
 
         this.scheduledEvents.push({
-            pulse: totalPulses,
+            pulse: pulse,
             callback,
             data
         });
