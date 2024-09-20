@@ -19,8 +19,6 @@ class TrackPlan {
         this.triggerSteps = this.triggerPattern.triggerSteps;
         this.durations = this.triggerPattern.durations;
         this.currentTriggerStep = 0;
-
-        this.sequencer.logger.log(`Trlegnthack ${this.triggerPattern.length} trigger pattern: ${JSON.stringify(this.triggerSteps)} ${JSON.stringify(this.triggerPattern.durations)}`);
     }
 
     setupTickerListeners() {
@@ -42,12 +40,16 @@ class TrackPlan {
 
         for (let pulse = planStartPulse; pulse < planEndPulse; pulse++) {
             if (this.shouldTriggerEventAtPulse(pulse, pulsesPerEvent)) {
-                if (this.hasTriggerStepAt()) {
+                if (this.hasTriggerStepAt() && this.checkTrackProbability()) {
                     this.scheduleEvent(pulse);
                 }
                 this.updateCurrentTriggerStep();
             }
         }
+    }
+
+    checkTrackProbability() {
+        return Math.random() * 100 < this.track.settings.probability;
     }
 
     durationForTriggerStep() {
