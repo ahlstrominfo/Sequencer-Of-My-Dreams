@@ -11,9 +11,6 @@ class Sequencer {
         this.settings = {
             bpm: bpm,
             ppq: ppq,
-            // key: 0, // C
-            // scale: 0, // Major
-            // transposition: 0,
             timeSignature: [4, 4],
             swing: 0,
             progressions: null,
@@ -23,7 +20,6 @@ class Sequencer {
         };
 
         this.realTimeKeeper = realTimeKeeper;
-        this.beatCounter = 0;
         this.tracks = [];
         this.isPlaying = false;
         this.midi = new MidiCommunicator(this);
@@ -46,13 +42,6 @@ class Sequencer {
         this.progressionSteps = [];
 
         this.loopIsRunning = false;
-    }
-
-    getStepDuration() {
-        const MILLISECONDS_PER_MINUTE = 60000;
-        const beatsPerMinute = this.settings.bpm;
-        const stepsPerBeat = 4; // Assuming 16th note resolution
-        return (MILLISECONDS_PER_MINUTE / beatsPerMinute) * (1 / stepsPerBeat);
     }
 
     setupClockCallbacks() {
@@ -99,12 +88,10 @@ class Sequencer {
         }
     }
     
-
     stop() {
         if (this.isPlaying) {
             this.ticker.stop();
             this.isPlaying = false;
-            this.beatCounter = 0;
             this.scheduler.clearEvents();
 
         }
@@ -165,10 +152,6 @@ class Sequencer {
         } else {
             this.start();
         }   
-    }
-
-    getCurrentScale() {
-        return this.settings.scale;
     }
 
     updateSettings(newSettings, shouldSaveToTmp = true) {
@@ -249,7 +232,6 @@ class Sequencer {
             this.calculateProgressionSteps();
         }
 
-        this.beatCounter = 0;
         shouldSaveToTmp && this.sequenceManager.saveToTmp();
     }
 
@@ -282,10 +264,6 @@ class Sequencer {
                 transposition: step.transposition
             });
         });
-    }
-    queueNoteEvent(event, trackId) {
-        event.trackId = trackId;
-        this.midi.queueNoteEvent(event);
     }
     
     gracefulShutdown() {
@@ -360,17 +338,6 @@ class Sequencer {
         if (this.listeners[event]) {
             this.listeners[event].forEach(callback => callback(data));
         }
-    }
-
-    updateSequencerState() {
-        const newPosition = this.ticker.getPosition();
-        this.beatCounter = (newPosition.bar * this.settings.timeSignature[0] + newPosition.beat) % this.maxBeats;
-
-        this.tracks.forEach(track => {
-            track.trackScheduler.resyncTrack();
-        });
-
-        this.midi.stopAllActiveNotes();
     }
 
     getProgressionAtPosition(bar, beat) {

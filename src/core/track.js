@@ -58,11 +58,7 @@ class Track {
             ...this.defaultSettings,
             ...initialSettings
         };
-        // this.trackScheduler = new TrackScheduler(this, this.sequencer);
-        // this.trackScheduler.updateTriggerPattern();
-
         this.trackPlan = new TrackPlan(this, this.sequencer);
-        // this.trackPlan.onTrackSettingsUpdate(this.settings);
     }
 
     updateSettings(newSettings, shouldSaveToTmp = true) {
@@ -131,13 +127,6 @@ class Track {
         if ('resyncInterval' in newSettings) {
             newSettings.resyncInterval = Math.max(0, Math.min(100, newSettings.resyncInterval));
         }
-
-        if ('isActive' in newSettings) {
-            if (newSettings.isActive === false && this.settings.isActive === true) {
-              // Track is being deactivated
-              this.sequencer.midi.stopAllNotesForTrack(this.trackId);
-            }
-          }
 
         // Update the settings
         Object.assign(this.settings, newSettings);
