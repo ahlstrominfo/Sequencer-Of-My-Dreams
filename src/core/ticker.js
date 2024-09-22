@@ -96,9 +96,9 @@ class Ticker {
     }
 
     sendAllEventsNoteOff() {
-        this.scheduleEvent.filter(event => event.data.type === 'noteOff').forEach(event => {
-            event.callback(this.getPositionFromPulse(event.pulse));
-        });
+        // this.scheduleEvent.filter(event => event.data.type === 'noteOff').forEach(event => {
+        //     event.callback(this.getPositionFromPulse(event.pulse));
+        // });
     }
 
 
@@ -238,6 +238,17 @@ class Ticker {
         const basePulsesPerEvent = this.pulsesPerBeat / 4; // 16th notes
         return Math.round(basePulsesPerEvent / speedMultiplier);
     }
+
+    removeScheduledEvents(criteria) {
+        this.scheduledEvents = this.scheduledEvents.filter(event => {
+            for (let key in criteria) {
+                if (event.data[key] !== criteria[key]) {
+                    return true; // Keep this event
+                }
+            }
+            return false; // Remove this event
+        });
+    }    
 }
 
 module.exports = Ticker;

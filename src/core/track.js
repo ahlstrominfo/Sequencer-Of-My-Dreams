@@ -109,7 +109,7 @@ class Track {
         }
 
         if ('swingAmount' in newSettings) {
-            newSettings.swingAmount = Math.max(0, Math.min(100, newSettings.swingAmount));
+            newSettings.swingAmount = Math.max(-50, Math.min(50, newSettings.swingAmount));
         }
 
         if ('probability' in newSettings) {

@@ -19,9 +19,9 @@ class TrackNotes {
 
     scheduleNotes({startPulse, maxDuration, defaultDuration, currentTriggerStep}) {
         if (this.checkTrackProbability()) {
-            const swingOffset = this.calculateSwingOffset(startPulse);
-            const { bar, beat } = this.ticker.getPositionFromPulse(startPulse);
             const trackSettings = this.track.settings;
+            const { bar, beat } = this.ticker.getPositionFromPulse(startPulse);
+            const { timeOffset: swingOffset, velocityOffset } = this.calculateGrooveOffset(startPulse);
 
             let currentNoteSeriesStep = this.currentNoteSeriesStep;
             if (trackSettings.tieNoteSeriestoPattern) {
@@ -35,13 +35,15 @@ class TrackNotes {
 
             if (this.checkNoteSeriesCounter(currentNoteSeriesStep)){
                 const chord = this.chordMakerForProgression(noteSettings, bar, beat);
-                chord.forEach((note, index) => {
+                chord.forEach((note) => {
                     if (Math.random() * 100 < noteSettings.probability) {
                         if (trackSettings.conformNotes) {
                             note = this.pitchForProgression(note, bar, beat);
                         }
+
+                        const adjustedVelocity = this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, trackSettings.volume, velocityOffset);
                         
-                        this.scheduleNote(note, trackSettings.channel - 1, startPulse + swingOffset, (startPulse + defaultDuration) - swingOffset, noteSettings.velocity);
+                        this.scheduleNote(note, trackSettings.channel - 1, startPulse + swingOffset, (startPulse + defaultDuration) - swingOffset, adjustedVelocity);
                     }
                 });
             }
@@ -53,6 +55,7 @@ class TrackNotes {
 
 
     scheduleNote(note, channel, startPulse, endPulse, velocity) {
+        this.ticker.removeScheduledEvents({ type: 'noteoff', channel: channel });
         this.ticker.scheduleEvent(
             startPulse,
             (position) => {
@@ -65,7 +68,8 @@ class TrackNotes {
                 );
             },
             {
-                type: 'noteOn',
+                type: 'noteon',
+                channel: channel,
             }
         );
         this.ticker.scheduleEvent(
@@ -81,6 +85,7 @@ class TrackNotes {
             },
             {
                 type: 'noteoff',
+                channel: channel,
             }
         );        
     }
@@ -98,19 +103,40 @@ class TrackNotes {
     }
 
     calculateSwingOffset(pulse) {
-        // Determine if this is an even or odd 16th note
-        const sixteenthIndex = Math.floor(pulse / this.ticker.pulsesPerSixteenth);
+        const speedMultiplier = this.track.settings.speedMultiplier;
+        const pulsesPerSwingUnit = this.ticker.pulsesPerSixteenth / speedMultiplier;
         
-        // Only apply swing to odd 16th notes
-        if (sixteenthIndex % 2 === 1) {
+        // Determine if this is an even or odd swing unit
+        const swingUnitIndex = Math.floor(pulse / pulsesPerSwingUnit);
+        
+        // Only apply swing to odd swing units
+        if (swingUnitIndex % 2 === 1) {
             // Calculate the swing offset
-            // swingAmount is a percentage (0-100) of a full 16th note
-            const swingOffset = Math.round(this.ticker.pulsesPerSixteenth * (this.track.settings.swingAmount / 100));
+            // swingAmount is a percentage (0-100) of a full swing unit
+            const swingOffset = Math.round(pulsesPerSwingUnit * (this.track.settings.swingAmount / 100));
             
             return swingOffset;
         }
         
         return 0;
+    }
+
+    calculateGrooveOffset(pulse) {
+        const groove = this.track.settings.groove;
+        if (!groove || groove.length === 0) {
+            return { timeOffset: this.calculateSwingOffset(pulse), velocityOffset: 0 };
+        }
+    
+        const speedMultiplier = this.track.settings.speedMultiplier;
+        const pulsesPerGrooveUnit = this.ticker.pulsesPerSixteenth / speedMultiplier;
+        
+        const grooveIndex = Math.floor(pulse / pulsesPerGrooveUnit) % groove.length;
+        const grooveStep = groove[grooveIndex];
+        
+        const timeOffset = Math.round(pulsesPerGrooveUnit * (grooveStep.timeOffset / 100));
+        const velocityOffset = grooveStep.velocityOffset;
+        
+        return { timeOffset, velocityOffset };
     }
     
     checkNoteSeriesCounter(noteIndex) {
@@ -167,7 +193,14 @@ class TrackNotes {
 
     getProgressionInfo(bar, beat) {
         return this.track.sequencer.getProgressionAtPosition(bar, beat);
-    }    
+    }   
+    
+    calculateAdjustedVelocity(velocity, velocitySpan, volume = 100, velocityOffsetPercentage = 0) {
+        const baseVelocity = velocity + Math.floor(Math.random() * (velocitySpan + 1));
+        const velocityOffset = Math.round((baseVelocity * velocityOffsetPercentage) / 100);
+        const adjustedVelocity = Math.max(1, Math.min(127, baseVelocity + velocityOffset));
+        return Math.round(adjustedVelocity * (volume / 100));
+    }
 }
 
 module.exports = TrackNotes;
