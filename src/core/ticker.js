@@ -92,6 +92,8 @@ class Ticker {
         while (this.scheduledEvents.length > 0 && this.scheduledEvents[0].pulse <= this.currentPulse) {
             const event = this.scheduledEvents.shift();
             event.callback(this.getPositionFromPulse(event.pulse));
+
+            this.notifyListeners('eventHappening', event);
         }
     }
 

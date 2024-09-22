@@ -71,6 +71,7 @@ class TrackNotes {
                 type: 'noteon',
                 note: note,
                 channel: channel,
+                trackId: this.track.trackId,
             }
         );
         this.ticker.scheduleEvent(
@@ -88,6 +89,7 @@ class TrackNotes {
                 type: 'noteoff',
                 note: note,
                 channel: channel,
+                trackId: this.track.trackId,
             }
         );        
     }
