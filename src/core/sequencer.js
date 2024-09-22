@@ -93,11 +93,6 @@ class Sequencer {
             // Always reset the clock when starting
             this.clock.reset();
     
-            // Reset all tracks
-            this.tracks.forEach(track => {
-                track.trackScheduler.resetTrackState();
-            });
-    
             // Plan the song if active
             if (this.settings.song.active) {
                 this.planSong();
@@ -124,11 +119,7 @@ class Sequencer {
             this.midi.sendStop();
             this.midi.stopAllActiveNotes();
             this.midi.clearQueue();
-    
-            // Reset all tracks
-            this.tracks.forEach(track => {
-                track.trackScheduler.resetTrackState();
-            });
+
         }
     }
     
@@ -291,16 +282,6 @@ class Sequencer {
     scheduleLoop() {
         if (this.isPlaying) {
             this.scheduler.processEvents();
-    
-            const currentTime = this.clock.getCurrentTime();
-            const lookAheadEnd = currentTime + this.scheduleAheadTime;
-    
-            this.tracks.forEach(track => {
-                if (track.trackScheduler.nextScheduleTime <= lookAheadEnd) {
-                   // track.trackScheduler.scheduleEvents(lookAheadEnd);
-                }
-            });
-            this.midi.processEventQueue(currentTime);
         }         
         this.realTimeKeeper.setImmediate(() => this.scheduleLoop());
     }

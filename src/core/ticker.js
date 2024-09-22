@@ -241,7 +241,7 @@ class Ticker {
         return Math.round(basePulsesPerEvent / speedMultiplier);
     }
 
-    removeScheduledEvents(criteria) {
+    removeScheduledEvents(criteria, pulsesAfter = 0) {
         this.scheduledEvents = this.scheduledEvents.filter(event => {
             for (let key in criteria) {
                 if (event.data[key] !== criteria[key]) {
@@ -250,7 +250,19 @@ class Ticker {
             }
             return false; // Remove this event
         });
-    }    
+    }
+
+    removeFutureNoteOffFromScheduledEvents(pulse, note, channel) {
+        this.scheduledEvents = this.scheduledEvents.filter(event => {
+            if (event.data.type === 'noteOff' 
+                && event.pulse > pulse
+                && event.data.note === note
+                && event.data.channel === channel) {
+                return false;
+            }
+            return true;
+        });
+    }
 }
 
 module.exports = Ticker;

@@ -1,7 +1,6 @@
 const { TRIGGER_TYPES } = require('../patterns/triggerPatterns');
 const { PLAY_ORDER } = require('../utils/utils');
 const { ARP_MODES } = require('../utils/arps');
-const TrackScheduler = require('./trackScheduler');
 const TrackPlan = require('./trackPlan');
 
 class Track {
@@ -59,8 +58,8 @@ class Track {
             ...this.defaultSettings,
             ...initialSettings
         };
-        this.trackScheduler = new TrackScheduler(this, this.sequencer);
-        this.trackScheduler.updateTriggerPattern();
+        // this.trackScheduler = new TrackScheduler(this, this.sequencer);
+        // this.trackScheduler.updateTriggerPattern();
 
         this.trackPlan = new TrackPlan(this, this.sequencer);
     }
@@ -143,7 +142,7 @@ class Track {
         Object.assign(this.settings, newSettings);
 
         // Additional logic after updating settings
-        this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
+        // this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
         this.trackPlan.onTrackSettingsUpdate(newSettings, this.settings);
         shouldSaveToTmp && this.sequencer.sequenceManager.saveToTmp();
         this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);

@@ -1,6 +1,6 @@
 const {triggerPatternFromSettings} = require('../patterns/triggerPatterns');
-
 const TrackNotes = require('./trackNotes');
+
 class TrackPlan {
     constructor(track, sequencer) {
         this.track = track;
@@ -89,64 +89,6 @@ class TrackPlan {
         // Check if this pulse should trigger an event based on the adjusted interval
         return pulse % pulsesPerEvent === 0;
     }
-
-    scheduleEvent(plannedPulse) {
-        let note = null;
-
-        switch (this.track.trackId) {
-            case 0:
-                note = 36;
-                break;
-            case 1:
-                note = 38;
-                break;
-            case 2:
-                note = 42;
-                break;
-            case 3:
-                note = 46;
-                break;
-        }
-
-
-        if (note !== null) {
-            
-            // this.sequencer.logger.log(`I'm at currentPulse: ${this.sequencer.ticker.getPosition().currentPulse} and planning for: ${plannedPulse}`);   
-            this.sequencer.ticker.scheduleEvent(
-                plannedPulse,
-                (position) => {
-                    
-                        // this.sequencer.logger.log(`Now I run a planned event at ${position.currentPulse}`); // ${JSON.stringify(position)}
-
-                        this.sequencer.midi.output.send('noteon', 
-                            {
-                                note: note,
-                                velocity: 127,
-                                channel: 1,
-                            }
-                        );
-
-                        setTimeout(() => {
-                            this.sequencer.midi.output.send('noteoff', 
-                                {
-                                    note: note  ,
-                                    velocity: 0,
-                                    channel: 1,
-                                }
-                            );
-                        }, 10);
-       
-                    
-                },
-                {
-                    type: 'noteOn',
-                }
-            );
-        }
-    }
-
-
-
 }
 
 module.exports = TrackPlan;

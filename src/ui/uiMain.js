@@ -125,7 +125,7 @@ class UIMain extends UIBase {
         const activeCols = [
             {
                 value: () => {
-                    return this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
+                    return ' ';//this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
                 },
                 enter: () => {
                     this.bpmCalculator.addTimestamp();
