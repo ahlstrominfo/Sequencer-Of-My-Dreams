@@ -1,6 +1,5 @@
 const MidiCommunicator = require('./midiCommunicator');
 const SequenceManager = require('./sequenceManager');
-const SongClock = require('./songClock');
 const SequenceScheduler = require('./sequenceScheduler');
 const { Track } = require('./track');
 const { SCALE_NAMES, KEYS } = require('../utils/scales');
@@ -28,14 +27,11 @@ class Sequencer {
         this.tracks = [];
         this.isPlaying = false;
         this.midi = new MidiCommunicator(this);
-        this.clock = new SongClock(bpm, ppq, this.settings.timeSignature, realTimeKeeper);
-        this.clock.updateMidiClockInterval();
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
         this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 
         this.scheduleAheadTime = 100; // Schedule 100ms ahead
-        this.tickDuration = 0; //this.clock.calculateTickDuration();
 
         this.logger = new Logger();
 
@@ -60,17 +56,12 @@ class Sequencer {
     }
 
     setupClockCallbacks() {
-        this.clock.setOnClockTickCallback(() => {
-            
-        });
-    
-        this.clock.setOnBarChangeCallback(() => {      
+        this.ticker.registerListener('bar', () => {
             if(this.loadActiveStates) {
                 this.setActiveState();
                 this.loadActiveStates = false;
             }
         });
-
         this.ticker.registerListener('pulse', (position) => {
             if (position.pulse % (this.ticker.pulsesPerBeat / 24) === 0) {
                 this.midi.sendClock();
@@ -96,10 +87,6 @@ class Sequencer {
         if (!this.isPlaying) {
             this.ticker.start();
 
-            // Always reset the clock when starting
-            this.clock.reset();
-    
-            // Plan the song if active
             if (this.settings.song.active) {
                 this.planSong();
             }
@@ -109,8 +96,6 @@ class Sequencer {
             if (!this.loopIsRunning) {
                 this.scheduleLoop();
             }
-            this.midi.sendStart();
-            this.clock.start();
         }
     }
     
@@ -121,10 +106,6 @@ class Sequencer {
             this.isPlaying = false;
             this.beatCounter = 0;
             this.scheduler.clearEvents();
-            this.clock.stop();
-            this.midi.sendStop();
-            this.midi.stopAllActiveNotes();
-            this.midi.clearQueue();
 
         }
     }
@@ -133,7 +114,7 @@ class Sequencer {
         const song = this.settings.song;
         let nrBars = 0;
     
-        const currentBar = this.clock.getPosition().bar;
+        const currentBar = this.ticker.getPosition().bar;
     
         // Set initial progression and active state
         this.updateSettings({
@@ -184,10 +165,6 @@ class Sequencer {
         } else {
             this.start();
         }   
-    }
-    
-    getCurrentPosition() {
-        return this.clock.getPosition();
     }
 
     getCurrentScale() {
@@ -259,15 +236,6 @@ class Sequencer {
 
 
         Object.assign(this.settings, newSettings);
-
-        if (this.settings.bpm !== oldBpm) {
-            
-            this.clock.setBPM(this.settings.bpm);
-            this.tickDuration = this.clock.calculateTickDuration();
-        }
-        if (this.settings.timeSignature !== oldTimeSignature) {
-            this.clock.setTimeSignature(...this.settings.timeSignature);
-        }
 
         if (oldActiveState !== this.settings.currentActiveState) {
             if (this.isPlaying && this.settings.song.active === false) {
@@ -394,20 +362,8 @@ class Sequencer {
         }
     }
 
-    ffw(bars) {
-        if (!this.isPlaying) return;
-        this.clock.fastForward(bars);
-        this.updateSequencerState();
-    }
-
-    rwd(bars) {
-        if (!this.isPlaying) return;
-        this.clock.rewind(bars);
-        this.updateSequencerState();
-    }
-
     updateSequencerState() {
-        const newPosition = this.clock.getPosition();
+        const newPosition = this.ticker.getPosition();
         this.beatCounter = (newPosition.bar * this.settings.timeSignature[0] + newPosition.beat) % this.maxBeats;
 
         this.tracks.forEach(track => {
@@ -418,7 +374,6 @@ class Sequencer {
     }
 
     getProgressionAtPosition(bar, beat) {
-
         const firstEvent = this.scheduler.scheduledEvents
             .filter(event => (event.bar === bar && event.beat <= beat && event.type === 'progressionChange'));
 

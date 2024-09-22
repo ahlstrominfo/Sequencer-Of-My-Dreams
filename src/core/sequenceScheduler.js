@@ -10,12 +10,12 @@ class SequenceScheduler {
     }
 
     scheduleNextBar(callback, data = {}) {
-        const nextBar = this.sequencer.clock.getPosition().bar + 1;
+        const nextBar = this.sequencer.ticker.getPosition().bar + 1;
         this.scheduleEvent(nextBar, 0, callback, data);
     }
 
     processEvents() {
-        const currentPosition = this.sequencer.clock.getPosition();
+        const currentPosition = this.sequencer.ticker.getPosition();
         const currentBar = currentPosition.bar;
         const currentBeat = currentPosition.beat;
 
