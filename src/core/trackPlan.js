@@ -7,6 +7,7 @@ class TrackPlan {
         this.trackNotes = new TrackNotes(track);
         this.sequencer = sequencer;
         this.currentTriggerStep = 0;
+        this.registeredListeners = {};
         this.setupTickerListeners();
         this.setTriggerPattern();
     }
@@ -27,13 +28,18 @@ class TrackPlan {
     }
 
     setupTickerListeners() {
-        this.sequencer.ticker.registerListener('plan', (position) => {
+        this.registeredListeners.plan = this.sequencer.ticker.registerListener('plan', (position) => {
             this.planEvents(position);
         });
 
-        this.sequencer.ticker.registerListener('reset', () => {
+        this.registeredListeners.reset = this.sequencer.ticker.registerListener('reset', () => {
             this.currentTriggerStep = 0;
         });
+    }
+
+    teardownTickerListeners() {
+        this.sequencer.ticker.unregisterListener('plan', this.registeredListeners.plan);
+        this.sequencer.ticker.unregisterListener('reset', this.registeredListeners.reset);
     }
 
     planEvents(position) {
@@ -41,6 +47,7 @@ class TrackPlan {
         const speedMultiplier = this.track.settings.speedMultiplier;
         const pulsesPerEvent = this.sequencer.ticker.getPulsesForSpeedMultiplier(speedMultiplier);
 
+        
         for (let pulse = planStartPulse; pulse < planEndPulse; pulse++) {
             if (this.shouldTriggerEventAtPulse(pulse, pulsesPerEvent)) {
                 if (this.hasTriggerStepAt()) {

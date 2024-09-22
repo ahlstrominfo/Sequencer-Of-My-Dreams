@@ -62,6 +62,7 @@ class Track {
         // this.trackScheduler.updateTriggerPattern();
 
         this.trackPlan = new TrackPlan(this, this.sequencer);
+        // this.trackPlan.onTrackSettingsUpdate(this.settings);
     }
 
     updateSettings(newSettings, shouldSaveToTmp = true) {

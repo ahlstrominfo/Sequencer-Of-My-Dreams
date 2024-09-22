@@ -7,6 +7,7 @@ class Ticker {
         this.isRunning = false;
         this.currentPulse = 0;
         this.listeners = new Map();
+        this.listenerIdCounter = 0;
         this.scheduledEvents = [];
         this.pulsesPerSixteenth = 24;
         this.sixteenthsPerBeat = 4;
@@ -61,15 +62,22 @@ class Ticker {
 
     registerListener(type, callback) {
         if (!this.listeners.has(type)) {
-            this.listeners.set(type, new Set());
+            this.listeners.set(type, new Map());
         }
-        this.listeners.get(type).add(callback);
+        const id = this.generateListenerId();
+        this.listeners.get(type).set(id, callback);
+        return id;
     }
 
-    unregisterListener(type, callback) {
+    unregisterListener(type, id) {
         if (this.listeners.has(type)) {
-            this.listeners.get(type).delete(callback);
+            return this.listeners.get(type).delete(id);
         }
+        return false;
+    }
+
+    generateListenerId() {
+        return `listener_${++this.listenerIdCounter}`;
     }
 
     scheduleEvent(pulse, callback, data = {}) {
@@ -143,7 +151,7 @@ class Ticker {
 
     notifyListeners(type, position) {
         if (this.listeners.has(type)) {
-            for (const callback of this.listeners.get(type)) {
+            for (const callback of this.listeners.get(type).values()) {
                 callback(position);
             }
         }
@@ -262,6 +270,24 @@ class Ticker {
             }
             return true;
         });
+    }
+
+    sendAllNoteOffEvents() {
+        const noteOffEvents = this.scheduledEvents.filter(event => 
+            event.data.type === 'noteoff'
+        );
+
+        noteOffEvents.forEach(event => {
+            // Call the callback immediately
+            event.callback(this.getPosition());
+        });
+
+        // Notify listeners that note off events have been sent
+        this.notifyListeners('allNoteOffSent', this.getPosition());
+    }
+    
+    clearAllListeners() {
+        this.listeners.clear();
     }
 }
 

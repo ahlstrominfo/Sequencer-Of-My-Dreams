@@ -3,7 +3,7 @@ const SequenceManager = require('./sequenceManager');
 const SongClock = require('./songClock');
 const SequenceScheduler = require('./sequenceScheduler');
 const { Track } = require('./track');
-const { conformNoteToScale, SCALE_NAMES, KEYS } = require('../utils/scales');
+const { SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
 const Ticker = require('./ticker');
 
@@ -61,13 +61,19 @@ class Sequencer {
 
     setupClockCallbacks() {
         this.clock.setOnClockTickCallback(() => {
-            this.midi.sendClock();
+            
         });
     
         this.clock.setOnBarChangeCallback(() => {      
             if(this.loadActiveStates) {
                 this.setActiveState();
                 this.loadActiveStates = false;
+            }
+        });
+
+        this.ticker.registerListener('pulse', (position) => {
+            if (position.pulse % (this.ticker.pulsesPerBeat / 24) === 0) {
+                this.midi.sendClock();
             }
         });
     }
@@ -244,13 +250,20 @@ class Sequencer {
             newSettings.currentProgressionIndex = Math.max(0, Math.min(progressionLength - 1, newSettings.currentProgressionIndex));
         }
 
+        if ('bpm' in newSettings){
+            this.logger.log('BPM changed to ' + newSettings.bpm);
+            newSettings.bpm = Math.min(300, Math.max(30, newSettings.bpm));
+            this.ticker.setBPM(newSettings.bpm);
+        }
+
+
+
         Object.assign(this.settings, newSettings);
 
         if (this.settings.bpm !== oldBpm) {
-            this.settings.bpm = Math.min(300, Math.max(30, this.settings.bpm));
+            
             this.clock.setBPM(this.settings.bpm);
             this.tickDuration = this.clock.calculateTickDuration();
-            this.ticker.setBPM(this.settings.bpm);
         }
         if (this.settings.timeSignature !== oldTimeSignature) {
             this.clock.setTimeSignature(...this.settings.timeSignature);
@@ -314,6 +327,13 @@ class Sequencer {
     }
 
     cleanSequencer() {
+        this.stop();
+        this.ticker.sendAllNoteOffEvents();
+        this.tracks.forEach(track => {
+            track.trackPlan.teardownTickerListeners();
+        });
+
+        // this.ticker.clearAllListeners();
         this.tracks = [];
         for (let i = 0; i < 16; i++) {
             let defaultTrackSettings = { channel: i + 1 };
@@ -335,7 +355,9 @@ class Sequencer {
             active: false,
             parts: []
         };
-        this.settings.currentProgressionIndex = 0;    
+        this.settings.currentProgressionIndex = 0;
+        this.updateSettings(this.settings, false);
+        
     }
 
     copySettingsToTrack(fromTrackIndex, toTrackIndex) {
