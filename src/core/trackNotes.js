@@ -55,7 +55,7 @@ class TrackNotes {
 
 
     scheduleNote(note, channel, startPulse, endPulse, velocity) {
-        this.ticker.removeScheduledEvents({ type: 'noteoff', channel: channel });
+        this.ticker.removeScheduledEvents({ type: 'noteoff', channel: channel, note: note });
         this.ticker.scheduleEvent(
             startPulse,
             (position) => {
@@ -69,6 +69,7 @@ class TrackNotes {
             },
             {
                 type: 'noteon',
+                note: note,
                 channel: channel,
             }
         );
@@ -85,6 +86,7 @@ class TrackNotes {
             },
             {
                 type: 'noteoff',
+                note: note,
                 channel: channel,
             }
         );        
