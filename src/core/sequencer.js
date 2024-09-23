@@ -27,8 +27,6 @@ class Sequencer {
         this.scheduler = new SequenceScheduler(this);
         this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 
-        this.scheduleAheadTime = 100; // Schedule 100ms ahead
-
         this.logger = new Logger();
 
         this.loadActiveStates = false;
