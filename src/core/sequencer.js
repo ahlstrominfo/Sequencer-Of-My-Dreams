@@ -154,8 +154,6 @@ class Sequencer {
 
     updateSettings(newSettings, shouldSaveToTmp = true) {
         const oldActiveState = this.settings.currentActiveState;
-        const oldBpm = this.settings.bpm;
-        const oldTimeSignature = this.settings.timeSignature;   
 
         if ('song' in newSettings) {
             newSettings.song.parts.forEach((part) => {
@@ -237,7 +235,8 @@ class Sequencer {
         if (index >= 0 && index < this.tracks.length) {
             this.tracks[index].updateSettings(trackSettings, false);
         } else {
-            this.tracks.push(new Track(trackSettings, this, index));        }
+            this.tracks.push(new Track(trackSettings, this, index));        
+        }
     }    
 
     scheduleLoop() {
