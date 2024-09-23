@@ -1,19 +1,16 @@
 const MidiCommunicator = require('./midiCommunicator');
 const SequenceManager = require('./sequenceManager');
-const SongClock = require('./songClock');
 const SequenceScheduler = require('./sequenceScheduler');
 const { Track } = require('./track');
-const { conformNoteToScale, SCALE_NAMES, KEYS } = require('../utils/scales');
+const { SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
+const Ticker = require('./ticker');
 
 class Sequencer {
     constructor(bpm = 120, ppq = 96, realTimeKeeper) {
         this.settings = {
             bpm: bpm,
             ppq: ppq,
-            // key: 0, // C
-            // scale: 0, // Major
-            // transposition: 0,
             timeSignature: [4, 4],
             swing: 0,
             progressions: null,
@@ -23,17 +20,12 @@ class Sequencer {
         };
 
         this.realTimeKeeper = realTimeKeeper;
-        this.beatCounter = 0;
         this.tracks = [];
         this.isPlaying = false;
         this.midi = new MidiCommunicator(this);
-        this.clock = new SongClock(bpm, ppq, this.settings.timeSignature, realTimeKeeper);
-        this.clock.updateMidiClockInterval();
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
-
-        this.scheduleAheadTime = 100; // Schedule 100ms ahead
-        this.tickDuration = 0; //this.clock.calculateTickDuration();
+        this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 
         this.logger = new Logger();
 
@@ -50,22 +42,16 @@ class Sequencer {
         this.loopIsRunning = false;
     }
 
-    getStepDuration() {
-        const MILLISECONDS_PER_MINUTE = 60000;
-        const beatsPerMinute = this.settings.bpm;
-        const stepsPerBeat = 4; // Assuming 16th note resolution
-        return (MILLISECONDS_PER_MINUTE / beatsPerMinute) * (1 / stepsPerBeat);
-    }
-
     setupClockCallbacks() {
-        this.clock.setOnClockTickCallback(() => {
-            this.midi.sendClock();
-        });
-    
-        this.clock.setOnBarChangeCallback(() => {      
+        this.ticker.registerListener('bar', () => {
             if(this.loadActiveStates) {
                 this.setActiveState();
                 this.loadActiveStates = false;
+            }
+        });
+        this.ticker.registerListener('pulse', (position) => {
+            if (position.pulse % (this.ticker.pulsesPerBeat / 24) === 0) {
+                this.midi.sendClock();
             }
         });
     }
@@ -86,15 +72,8 @@ class Sequencer {
 
     start() {
         if (!this.isPlaying) {
-            // Always reset the clock when starting
-            this.clock.reset();
-    
-            // Reset all tracks
-            this.tracks.forEach(track => {
-                track.trackScheduler.resetTrackState();
-            });
-    
-            // Plan the song if active
+            this.ticker.start();
+
             if (this.settings.song.active) {
                 this.planSong();
             }
@@ -104,26 +83,15 @@ class Sequencer {
             if (!this.loopIsRunning) {
                 this.scheduleLoop();
             }
-            this.midi.sendStart();
-            this.clock.start();
         }
     }
     
-
     stop() {
         if (this.isPlaying) {
+            this.ticker.stop();
             this.isPlaying = false;
-            this.beatCounter = 0;
             this.scheduler.clearEvents();
-            this.clock.stop();
-            this.midi.sendStop();
-            this.midi.stopAllActiveNotes();
-            this.midi.clearQueue();
-    
-            // Reset all tracks
-            this.tracks.forEach(track => {
-                track.trackScheduler.resetTrackState();
-            });
+
         }
     }
     
@@ -131,7 +99,7 @@ class Sequencer {
         const song = this.settings.song;
         let nrBars = 0;
     
-        const currentBar = this.clock.getPosition().bar;
+        const currentBar = this.ticker.getPosition().bar;
     
         // Set initial progression and active state
         this.updateSettings({
@@ -183,19 +151,9 @@ class Sequencer {
             this.start();
         }   
     }
-    
-    getCurrentPosition() {
-        return this.clock.getPosition();
-    }
-
-    getCurrentScale() {
-        return this.settings.scale;
-    }
 
     updateSettings(newSettings, shouldSaveToTmp = true) {
         const oldActiveState = this.settings.currentActiveState;
-        const oldBpm = this.settings.bpm;
-        const oldTimeSignature = this.settings.timeSignature;   
 
         if ('song' in newSettings) {
             newSettings.song.parts.forEach((part) => {
@@ -248,16 +206,15 @@ class Sequencer {
             newSettings.currentProgressionIndex = Math.max(0, Math.min(progressionLength - 1, newSettings.currentProgressionIndex));
         }
 
-        Object.assign(this.settings, newSettings);
+        if ('bpm' in newSettings){
+            this.logger.log('BPM changed to ' + newSettings.bpm);
+            newSettings.bpm = Math.min(300, Math.max(30, newSettings.bpm));
+            this.ticker.setBPM(newSettings.bpm);
+        }
 
-        if (this.settings.bpm !== oldBpm) {
-            this.settings.bpm = Math.min(300, Math.max(30, this.settings.bpm));
-            this.clock.setBPM(this.settings.bpm);
-            this.tickDuration = this.clock.calculateTickDuration();
-        }
-        if (this.settings.timeSignature !== oldTimeSignature) {
-            this.clock.setTimeSignature(...this.settings.timeSignature);
-        }
+
+
+        Object.assign(this.settings, newSettings);
 
         if (oldActiveState !== this.settings.currentActiveState) {
             if (this.isPlaying && this.settings.song.active === false) {
@@ -271,7 +228,6 @@ class Sequencer {
             this.calculateProgressionSteps();
         }
 
-        this.beatCounter = 0;
         shouldSaveToTmp && this.sequenceManager.saveToTmp();
     }
 
@@ -279,22 +235,13 @@ class Sequencer {
         if (index >= 0 && index < this.tracks.length) {
             this.tracks[index].updateSettings(trackSettings, false);
         } else {
-            this.tracks.push(new Track(trackSettings, this, index));        }
+            this.tracks.push(new Track(trackSettings, this, index));        
+        }
     }    
 
     scheduleLoop() {
         if (this.isPlaying) {
             this.scheduler.processEvents();
-    
-            const currentTime = this.clock.getCurrentTime();
-            const lookAheadEnd = currentTime + this.scheduleAheadTime;
-    
-            this.tracks.forEach(track => {
-                if (track.trackScheduler.nextScheduleTime <= lookAheadEnd) {
-                    track.trackScheduler.scheduleEvents(lookAheadEnd);
-                }
-            });
-            this.midi.processEventQueue(currentTime);
         }         
         this.realTimeKeeper.setImmediate(() => this.scheduleLoop());
     }
@@ -315,17 +262,21 @@ class Sequencer {
             });
         });
     }
-    queueNoteEvent(event, trackId) {
-        event.trackId = trackId;
-        this.midi.queueNoteEvent(event);
-    }
     
     gracefulShutdown() {
         this.stop();
+        this.ticker.sendAllEventsNoteOff();
         this.midi.close();
     }
 
     cleanSequencer() {
+        this.stop();
+        this.ticker.sendAllNoteOffEvents();
+        this.tracks.forEach(track => {
+            track.trackPlan.teardownTickerListeners();
+        });
+
+        // this.ticker.clearAllListeners();
         this.tracks = [];
         for (let i = 0; i < 16; i++) {
             let defaultTrackSettings = { channel: i + 1 };
@@ -347,7 +298,9 @@ class Sequencer {
             active: false,
             parts: []
         };
-        this.settings.currentProgressionIndex = 0;    
+        this.settings.currentProgressionIndex = 0;
+        this.updateSettings(this.settings, false);
+        
     }
 
     copySettingsToTrack(fromTrackIndex, toTrackIndex) {
@@ -384,31 +337,7 @@ class Sequencer {
         }
     }
 
-    ffw(bars) {
-        if (!this.isPlaying) return;
-        this.clock.fastForward(bars);
-        this.updateSequencerState();
-    }
-
-    rwd(bars) {
-        if (!this.isPlaying) return;
-        this.clock.rewind(bars);
-        this.updateSequencerState();
-    }
-
-    updateSequencerState() {
-        const newPosition = this.clock.getPosition();
-        this.beatCounter = (newPosition.bar * this.settings.timeSignature[0] + newPosition.beat) % this.maxBeats;
-
-        this.tracks.forEach(track => {
-            track.trackScheduler.resyncTrack();
-        });
-
-        this.midi.stopAllActiveNotes();
-    }
-
     getProgressionAtPosition(bar, beat) {
-
         const firstEvent = this.scheduler.scheduledEvents
             .filter(event => (event.bar === bar && event.beat <= beat && event.type === 'progressionChange'));
 

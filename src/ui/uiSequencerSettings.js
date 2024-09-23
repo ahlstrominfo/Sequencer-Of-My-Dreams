@@ -88,7 +88,6 @@ class UISequencerSettings extends UIBase {
             { name: 'New Sequence', 
                 value: 'New',
                 enter: () => {
-                    this.sequencer.midi.stopAllActiveNotes();
                     this.sequencer.cleanSequencer();
                     this.sequenceManager.clearCurrentFileName();
                     this.terminalUI.setView('main');

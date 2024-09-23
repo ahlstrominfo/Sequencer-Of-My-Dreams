@@ -1,7 +1,7 @@
 const { TRIGGER_TYPES } = require('../patterns/triggerPatterns');
 const { PLAY_ORDER } = require('../utils/utils');
 const { ARP_MODES } = require('../utils/arps');
-const TrackScheduler = require('./trackScheduler');
+const TrackPlan = require('./trackPlan');
 
 class Track {
     constructor(initialSettings = {}, sequencer, trackId) {
@@ -58,8 +58,7 @@ class Track {
             ...this.defaultSettings,
             ...initialSettings
         };
-        this.trackScheduler = new TrackScheduler(this, this.sequencer);
-        this.trackScheduler.updateTriggerPattern();
+        this.trackPlan = new TrackPlan(this, this.sequencer);
     }
 
     updateSettings(newSettings, shouldSaveToTmp = true) {
@@ -106,7 +105,7 @@ class Track {
         }
 
         if ('swingAmount' in newSettings) {
-            newSettings.swingAmount = Math.max(0, Math.min(100, newSettings.swingAmount));
+            newSettings.swingAmount = Math.max(-50, Math.min(50, newSettings.swingAmount));
         }
 
         if ('probability' in newSettings) {
@@ -129,18 +128,12 @@ class Track {
             newSettings.resyncInterval = Math.max(0, Math.min(100, newSettings.resyncInterval));
         }
 
-        if ('isActive' in newSettings) {
-            if (newSettings.isActive === false && this.settings.isActive === true) {
-              // Track is being deactivated
-              this.sequencer.midi.stopAllNotesForTrack(this.trackId);
-            }
-          }
-
         // Update the settings
         Object.assign(this.settings, newSettings);
 
         // Additional logic after updating settings
-        this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
+        // this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
+        this.trackPlan.onTrackSettingsUpdate(newSettings, this.settings);
         shouldSaveToTmp && this.sequencer.sequenceManager.saveToTmp();
         this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
     }

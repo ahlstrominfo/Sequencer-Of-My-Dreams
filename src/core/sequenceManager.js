@@ -50,7 +50,6 @@ class SequenceManager {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const sequenceData = JSON.parse(fileContent);
 
-        this.sequencer.midi.stopAllActiveNotes();
         sequenceData.tracks.forEach((trackSettings, index) => {
             this.sequencer.updateTrackSettings(index, trackSettings);
         });

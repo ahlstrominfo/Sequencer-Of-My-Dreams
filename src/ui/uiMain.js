@@ -6,7 +6,23 @@ class UIMain extends UIBase {
         super(terminalUI, sequencer);
         this.bpmCalculator = new BPMCalculator();
         this.trackLabels = '0123456789abcdefghijklmnopqrstuvwxz'.split('');
-    }   
+        this.trackPlaying = Array(16).fill(false);
+        this.trackPlayingTimeout = Array(16);
+        this.registerEvents();
+    }
+
+    registerEvents() {
+        this.sequencer.ticker.registerListener('eventHappening', (event) => {
+            this.trackPlaying[event.data.trackId] = true;
+            if (this.trackPlayingTimeout[event.data.trackId]) {
+                clearTimeout(this.trackPlayingTimeout[event.data.trackId]);
+            }
+            this.trackPlayingTimeout[event.data.trackId] = setTimeout(() => {
+                this.trackPlaying[event.data.trackId] = false;
+            }, 100);
+        });
+
+    }
 
     getBoxDrawingCharacter(number) {
         // Round to nearest 10
@@ -91,7 +107,7 @@ class UIMain extends UIBase {
                 { value: () => ' ' }, // Placeholder for Sequencer column
                 ...this.sequencer.tracks.map((track) => ({
                     value: () => {
-                        return track.trackScheduler.getActiveNotes().length > 0 ? '■' : '□';
+                        return this.trackPlaying[track.trackId] ? '■' : '□';
                     },
                     enter: () => {
                         track.updateSettings({ isActive: !track.settings.isActive });
@@ -109,7 +125,7 @@ class UIMain extends UIBase {
         const activeCols = [
             {
                 value: () => {
-                    return this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
+                    return ' ';//this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
                 },
                 enter: () => {
                     this.bpmCalculator.addTimestamp();
