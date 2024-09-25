@@ -44,7 +44,7 @@ class TrackNotes {
                 || noteSettings.arpMode === ARP_MODES.OFF) {
                     this.schedueldChord(currentNoteSeriesStep, startPulse, noteDuration);
             } else {
-                this.scheduleArpeggio(currentNoteSeriesStep, startPulse, noteDuration, defaultDuration);
+                this.scheduleArpeggio(currentNoteSeriesStep, startPulse, noteDuration, defaultDuration, maxDuration);
             }            
         }
 
@@ -73,7 +73,7 @@ class TrackNotes {
         this.advanceNoteSeriesCounter(currentNoteSeriesStep);
     }
 
-    scheduleArpeggio(currentNoteSeriesStep, startPulse, durationPulses, defaultDuration) {
+    scheduleArpeggio(currentNoteSeriesStep, startPulse, durationPulses, defaultDuration, maxDuration) {
         const trackSettings = this.track.settings;
         const noteSettings = trackSettings.noteSeries[currentNoteSeriesStep];
 
@@ -94,13 +94,15 @@ class TrackNotes {
         }
 
         let arpStepDuration = Math.floor(defaultDuration / playMultiplier);
-        let nrSteps = Math.max(1, (durationPulses / arpStepDuration));
+        let nrSteps = Math.max(1, (maxDuration / arpStepDuration));
         
         if (wonkyArp || noteSettings.wonkyArp) {
             nrSteps = arpPattern.length * playMultiplier;
-            arpStepDuration = durationPulses / nrSteps;
+            arpStepDuration = maxDuration / nrSteps;
         }
         
+        // arpStepDuration = arpStepDuration * this.track.settings.speedMultiplier;
+
         let stepsIterator = nrSteps;
         let arpStartPulse = startPulse;
         let arpPatternIndex = 0;
@@ -111,6 +113,15 @@ class TrackNotes {
             let durationPulses = arpStepDuration;
             if (stepsIterator < 1) {
                 durationPulses = Math.floor(stepsIterator * durationPulses);
+            }
+
+            let noteDuration = durationPulses;
+
+            if (trackSettings.useMaxDuration) {
+                noteDuration = Math.max(1, Math.round(durationPulses * trackSettings.maxDurationFactor));
+            }
+            if (noteSettings.useMaxDuration) {
+                noteDuration = Math.max(1, Math.round(durationPulses * noteSettings.maxDurationFactor));
             }
             const chord = this.chordMakerForProgression(noteSettings, bar, beat);
             
@@ -127,7 +138,7 @@ class TrackNotes {
                             if (this.track.settings.conformNotes) {
                                 pitch = this.pitchForProgression(pitch, bar, beat);
                             }    
-                            this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + durationPulses) - (swingOffset + 1), adjustedVelocity);
+                            this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + noteDuration) - (swingOffset + 1), adjustedVelocity);
                         }
                     });
 
@@ -137,7 +148,7 @@ class TrackNotes {
                         if (this.track.settings.conformNotes) {
                             pitch = this.pitchForProgression(pitch, bar, beat);
                         }    
-                        this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + durationPulses) - (swingOffset + 1), adjustedVelocity);
+                        this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + noteDuration) - (swingOffset + 1), adjustedVelocity);
                     }
 
                 }

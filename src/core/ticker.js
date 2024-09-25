@@ -126,7 +126,6 @@ class Ticker {
 
         // Check if it's time for the next pulse
         if (currentTime - this.lastPulseTime >= pulseInterval) {
-            // this.sequencer.logger.log(`Current time: ${currentTime}, last pulse time: ${this.lastPulseTime}, pulse interval: ${pulseInterval}`);    
             this.lastPulseTime = currentTime;
 
             // Process scheduled events

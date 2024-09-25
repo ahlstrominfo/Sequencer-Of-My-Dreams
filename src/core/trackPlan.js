@@ -14,7 +14,7 @@ class TrackPlan {
     }
 
     onTrackSettingsUpdate(newSettings) {
-        if ('triggerType' in newSettings || 'triggerSettings' in newSettings || 'resyncInterval' in newSettings) {
+        if ('triggerType' in newSettings || 'triggerSettings' in newSettings || 'resyncInterval' in newSettings || 'speedMultiplier' in newSettings) {
             this.setTriggerPattern();
         }
 
@@ -25,7 +25,7 @@ class TrackPlan {
         this.triggerPattern = triggerPatternFromSettings(this.track.settings);
         this.triggerSteps = this.triggerPattern.triggerSteps;
         this.durations = this.triggerPattern.durations;
-        this.currentTriggerStep = 0;
+        this.currentTriggerStep = this.currentTriggerStep >= this.triggerPattern.length ? 0 : this.currentTriggerStep;
         
         // Calculate and cache the durations
         const speedMultiplier = this.track.settings.speedMultiplier;

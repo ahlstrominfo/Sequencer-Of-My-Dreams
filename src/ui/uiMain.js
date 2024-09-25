@@ -9,6 +9,7 @@ class UIMain extends UIBase {
         this.trackPlaying = Array(16).fill(false);
         this.trackPlayingTimeout = Array(16);
         this.registerEvents();
+        this.bigHeart = false;
     }
 
     registerEvents() {
@@ -22,6 +23,9 @@ class UIMain extends UIBase {
             }, 100);
         });
 
+        this.sequencer.ticker.registerListener('beat', () => {
+            this.bigHeart = !this.bigHeart;
+        });
     }
 
     getBoxDrawingCharacter(number) {
@@ -125,7 +129,7 @@ class UIMain extends UIBase {
         const activeCols = [
             {
                 value: () => {
-                    return ' ';//this.sequencer.getCurrentPosition().beat % 2 === 0 ? '♥' : '❤';
+                    return this.bigHeart ? '♥' : '❤';
                 },
                 enter: () => {
                     this.bpmCalculator.addTimestamp();
