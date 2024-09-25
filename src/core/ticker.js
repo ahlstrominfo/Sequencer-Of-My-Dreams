@@ -9,11 +9,22 @@ class Ticker {
         this.listeners = new Map();
         this.listenerIdCounter = 0;
         this.scheduledEvents = [];
-        this.pulsesPerSixteenth = 24;
+        this.pulsesPerBeat = 24;
+        this.pulsesPerSixteenth = 6; // or 24 pleeeeese    
         this.sixteenthsPerBeat = 4;
         this.pulsesPerBeat = this.pulsesPerSixteenth * this.sixteenthsPerBeat;
         this.timeKeeper = new RealTimeKeeper();
         this.lastPulseTime = 0;
+
+        this.postionFromPulseData = new Set();
+
+        this.positionCache = new Map();
+
+        this.lastPosition = 0;
+        this.lastPositionData = null;
+    
+        this.pulseInterval = this.calculatePulseInterval();
+
         this.sequencer = sequencer;
     }
 
@@ -39,6 +50,7 @@ class Ticker {
     }
 
     reset() {
+        this.sendAllNoteOffEvents();
         this.currentPulse = 0;
         this.scheduledEvents = [];
         this.notifyListeners('reset');
@@ -54,6 +66,7 @@ class Ticker {
 
     setBPM(bpm) {
         this.bpm = bpm;
+        this.pulseInterval = this.calculatePulseInterval();
     }
 
     setTimeSignature(numerator, denominator) {
@@ -105,21 +118,15 @@ class Ticker {
         }
     }
 
-    sendAllEventsNoteOff() {
-        // this.scheduleEvent.filter(event => event.data.type === 'noteOff').forEach(event => {
-        //     event.callback(this.getPositionFromPulse(event.pulse));
-        // });
-    }
-
-
-    pulse() {
+     pulse() {
         if (!this.isRunning) return;
 
         const currentTime = this.timeKeeper.getCurrentTime();
-        const pulseInterval = this.calculatePulseInterval();
+        const pulseInterval = this.pulseInterval;
 
         // Check if it's time for the next pulse
         if (currentTime - this.lastPulseTime >= pulseInterval) {
+            // this.sequencer.logger.log(`Current time: ${currentTime}, last pulse time: ${this.lastPulseTime}, pulse interval: ${pulseInterval}`);    
             this.lastPulseTime = currentTime;
 
             // Process scheduled events
@@ -129,13 +136,19 @@ class Ticker {
 
             // Notify listeners
             this.notifyListeners('pulse', position);
+            // this.sequencer.midi.sendClock();
+
+            if (this.positionCache.size > 100) {
+                this.positionCache.clear();
+            }
 
             if (position.pulse === 0) {
                 this.notifyListeners('16th', position);
+
                 if (position.sixteenth === 0) {
                     this.notifyListeners('beat', position);
                     this.handleBeatPlanning();
-                    
+
                     if (position.beat === 0) {
                         this.notifyListeners('bar', position);
                     }
@@ -146,7 +159,7 @@ class Ticker {
         }
 
         // Schedule next pulse check
-        this.timeKeeper.setImmediate(() => this.pulse());
+        this.timeKeeper.setTimeout(() => this.pulse(), 1);
     }
 
     notifyListeners(type, position) {
@@ -172,92 +185,58 @@ class Ticker {
     }
 
     getPosition() {
-        const pulsesPerBar = this.pulsesPerBeat * this.timeSignature[0];
-        const bar = Math.floor(this.currentPulse / pulsesPerBar);
-        const beatInBar = Math.floor((this.currentPulse % pulsesPerBar) / this.pulsesPerBeat);
-        const sixteenthInBeat = Math.floor((this.currentPulse % this.pulsesPerBeat) / this.pulsesPerSixteenth);
-        const pulseInSixteenth = this.currentPulse % this.pulsesPerSixteenth;
-        return { 
-            bar, 
-            beat: beatInBar, 
-            sixteenth: sixteenthInBeat, 
-            pulse: pulseInSixteenth,
-            currentPulse: this.currentPulse 
-        };
+        if (this.lastPosition !== this.currentPulse || !this.lastPositionData) {
+            const pulsesPerBar = this.pulsesPerBeat * this.timeSignature[0];
+            const bar = Math.floor(this.currentPulse / pulsesPerBar);
+            const beatInBar = Math.floor((this.currentPulse % pulsesPerBar) / this.pulsesPerBeat);
+            const sixteenthInBeat = Math.floor((this.currentPulse % this.pulsesPerBeat) / this.pulsesPerSixteenth);
+            const pulseInSixteenth = this.currentPulse % this.pulsesPerSixteenth;
+            this.lastPositionData = { 
+                bar, 
+                beat: beatInBar, 
+                sixteenth: sixteenthInBeat, 
+                pulse: pulseInSixteenth,
+                currentPulse: this.currentPulse 
+            };
+            this.lastPosition = this.currentPulse;
+        }
+        return this.lastPositionData;
     }
 
     calculatePulseInterval() {
         const millisecondsPerMinute = 60000;
         const pulsesPerMinute = this.bpm * this.pulsesPerBeat;
-        return millisecondsPerMinute / pulsesPerMinute;
+        const interval = millisecondsPerMinute / pulsesPerMinute;
+        console.log(`BPM: ${this.bpm}, Pulses per beat: ${this.pulsesPerBeat}, Calculated interval: ${interval}ms`);
+        return interval;
     }
-
-    getStepsPerBeat() {
-        return this.sixteenthsPerBeat;
-    }
-
-    getPulsesPerStep() {
-        return this.pulsesPerSixteenth;
-    }
-
-    getGlobalStep(bar, beat, step) {
-        return (bar * this.timeSignature[0] * this.getStepsPerBeat()) + (beat * this.getStepsPerBeat()) + step;
-    }
-
-    getScheduledPulse(bar, beat, step) {
-        return (bar * this.timeSignature[0] * this.pulsesPerBeat) + 
-               (beat * this.pulsesPerBeat) + 
-               (step * this.getPulsesPerStep());
-    }
-
-    getStepDuration(speedMultiplier = 1) {
-        const beatsPerSecond = this.bpm / 60;
-        const secondsPerBeat = 1 / beatsPerSecond;
-        const secondsPerStep = secondsPerBeat / this.getStepsPerBeat();
-        return (secondsPerStep * 1000) / speedMultiplier; // Convert to milliseconds
-    }
-
-    getPulseFromTime(time) {
-        const elapsedTime = time - this.lastPulseTime;
-        const pulseInterval = this.calculatePulseInterval();
-        return Math.floor(elapsedTime / pulseInterval);
-    }
-
-    getTimeFromPulse(pulse) {
-        const pulseInterval = this.calculatePulseInterval();
-        return this.lastPulseTime + (pulse * pulseInterval);
-    }   
-    
 
     getPositionFromPulse(pulse) {
+        if (this.positionCache.has(pulse)) {
+            return this.positionCache.get(pulse);
+        }
+    
         const pulsesPerBar = this.pulsesPerBeat * this.timeSignature[0];
         const bar = Math.floor(pulse / pulsesPerBar);
         const beatInBar = Math.floor((pulse % pulsesPerBar) / this.pulsesPerBeat);
         const sixteenthInBeat = Math.floor((pulse % this.pulsesPerBeat) / this.pulsesPerSixteenth);
         const pulseInSixteenth = pulse % this.pulsesPerSixteenth;
-        return { 
+        
+        const position = { 
             bar, 
             beat: beatInBar, 
             sixteenth: sixteenthInBeat, 
             pulse: pulseInSixteenth,
             currentPulse: pulse 
         };
+    
+        this.positionCache.set(pulse, position);
+        return position;
     }
 
     getPulsesForSpeedMultiplier(speedMultiplier) {
         const basePulsesPerEvent = this.pulsesPerBeat / 4; // 16th notes
         return Math.round(basePulsesPerEvent / speedMultiplier);
-    }
-
-    removeScheduledEvents(criteria, pulsesAfter = 0) {
-        this.scheduledEvents = this.scheduledEvents.filter(event => {
-            for (let key in criteria) {
-                if (event.data[key] !== criteria[key]) {
-                    return true; // Keep this event
-                }
-            }
-            return false; // Remove this event
-        });
     }
 
     removeFutureNoteOffFromScheduledEvents(pulse, note, channel) {

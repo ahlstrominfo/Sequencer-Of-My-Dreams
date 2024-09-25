@@ -25,9 +25,9 @@ class Sequencer {
         this.midi = new MidiCommunicator(this);
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
+        this.logger = new Logger();
         this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 
-        this.logger = new Logger();
 
         this.loadActiveStates = false;
 
@@ -50,6 +50,12 @@ class Sequencer {
             }
         });
         this.ticker.registerListener('pulse', (position) => {
+            if (position.currentPulse === 0) {
+                this.midi.sendStart();
+                const songPosition = Math.floor(position.currentPulse / this.ticker.pulsesPerSixteenth);
+                this.midi.sendSongPosition(songPosition);
+            }
+
             if (position.pulse % (this.ticker.pulsesPerBeat / 24) === 0) {
                 this.midi.sendClock();
             }
@@ -207,7 +213,6 @@ class Sequencer {
         }
 
         if ('bpm' in newSettings){
-            this.logger.log('BPM changed to ' + newSettings.bpm);
             newSettings.bpm = Math.min(300, Math.max(30, newSettings.bpm));
             this.ticker.setBPM(newSettings.bpm);
         }
@@ -243,29 +248,73 @@ class Sequencer {
         if (this.isPlaying) {
             this.scheduler.processEvents();
         }         
-        this.realTimeKeeper.setImmediate(() => this.scheduleLoop());
+        this.realTimeKeeper.setTimeout(() => this.scheduleLoop(), 1);
     }
 
     calculateProgressionSteps() {
         const beatsPerBar = this.settings.timeSignature[0];
-        this.maxBeats = 0;
-        this.progressionSteps = [];
-
-        const currentProgression = this.settings.progressions[this.settings.currentProgressionIndex];
-        currentProgression.forEach((step) => {
-            const stepBeats = step.bars * beatsPerBar + step.beats;
-            this.maxBeats += stepBeats;
-            this.progressionSteps.push({
-                endBeat: this.maxBeats,
+        this.songProgressionSteps = [];
+        this.regularProgressionSteps = [];
+        let songTotalBeats = 0;
+        let regularTotalBeats = 0;
+    
+        // Calculate song mode steps
+        if (this.settings.song.parts && this.settings.song.parts.length > 0) {
+            this.settings.song.parts.forEach((part, partIndex) => {
+                const progression = this.settings.progressions[part.progression];
+                const partDuration = part.bars * beatsPerBar;
+                let partBeat = 0;
+    
+                while (partBeat < partDuration) {
+                    for (let stepIndex = 0; stepIndex < progression.length; stepIndex++) {
+                        const step = progression[stepIndex];
+                        const stepDuration = (step.bars * beatsPerBar) + step.beats;
+                        const endBeat = Math.min(partBeat + stepDuration, partDuration);
+                        this.songProgressionSteps.push({
+                            partIndex,
+                            progressionIndex: part.progression,
+                            stepIndex,
+                            startBeat: songTotalBeats,
+                            endBeat: songTotalBeats + (endBeat - partBeat),
+                            scale: step.scale,
+                            transposition: step.transposition,
+                            key: step.key,
+                            activeState: part.activeState
+                        });
+                        const actualStepDuration = endBeat - partBeat;
+                        partBeat += actualStepDuration;
+                        songTotalBeats += actualStepDuration;
+    
+                        if (partBeat >= partDuration) {
+                            break;  // This break is now correctly within the for loop
+                        }
+                    }
+                }
+            });
+        }
+    
+        // Calculate regular progression steps
+        this.settings.progressions[this.settings.currentProgressionIndex].forEach((step, stepIndex) => {
+            const stepDuration = (step.bars * beatsPerBar) + step.beats;
+            regularTotalBeats += stepDuration;
+            this.regularProgressionSteps.push({
+                progressionIndex: this.settings.currentProgressionIndex,
+                stepIndex,
+                startBeat: regularTotalBeats - stepDuration,
+                endBeat: regularTotalBeats,
                 scale: step.scale,
-                transposition: step.transposition
+                transposition: step.transposition,
+                key: step.key
             });
         });
+    
+        this.songTotalLength = songTotalBeats;
+        this.regularTotalLength = regularTotalBeats;
     }
     
     gracefulShutdown() {
         this.stop();
-        this.ticker.sendAllEventsNoteOff();
+        this.ticker.sendAllNoteOffEvents();
         this.midi.close();
     }
 
@@ -338,54 +387,37 @@ class Sequencer {
     }
 
     getProgressionAtPosition(bar, beat) {
-        const firstEvent = this.scheduler.scheduledEvents
-            .filter(event => (event.bar === bar && event.beat <= beat && event.type === 'progressionChange'));
-
-        let currentProgressionIndex = this.settings.currentProgressionIndex;;
-        if (firstEvent.length > 0) {
-            currentProgressionIndex = firstEvent[firstEvent.length - 1].data.progressionIndex;
-        }
-
         const beatsPerBar = this.settings.timeSignature[0];
         let totalBeats = (bar * beatsPerBar) + beat;
-        
-        const currentProgression = this.settings.progressions[currentProgressionIndex];
-        let totalProgressionBeats = 0;
-        
-        // Calculate total beats in the progression
-        currentProgression.forEach(step => {
-            totalProgressionBeats += (step.bars * beatsPerBar) + step.beats;
-        });
     
-        // Wrap around if necessary
-        totalBeats = totalBeats % totalProgressionBeats;
+        if (this.settings.song.active && this.songProgressionSteps.length > 0) {
+            // Use song mode progression
+            totalBeats = totalBeats % this.songTotalLength;
+            const step = this.songProgressionSteps.find(step => 
+                step.startBeat <= totalBeats && totalBeats < step.endBeat
+            );
     
-        let accumulatedBeats = 0;
-        
-        for (let i = 0; i < currentProgression.length; i++) {
-            const step = currentProgression[i];
-            const stepDuration = (step.bars * beatsPerBar) + step.beats;
-            accumulatedBeats += stepDuration;
+            if (step) {
+                this.updateSettings({
+                    currentProgressionIndex: step.progressionIndex,
+                    currentActiveState: step.activeState
+                }, false);  // false to prevent recursive saving
+                return step;
+            }
+        } else {
+            // Use regular progression
+            totalBeats = totalBeats % this.regularTotalLength;
+            const step = this.regularProgressionSteps.find(step => 
+                step.startBeat <= totalBeats && totalBeats < step.endBeat
+            );
     
-            if (totalBeats < accumulatedBeats) {
-                return {
-                    progressionIndex: this.settings.currentProgressionIndex,
-                    stepIndex: i,
-                    scale: step.scale,
-                    transposition: step.transposition,
-                    key: step.key
-                };
+            if (step) {
+                return step;
             }
         }
     
-        // This should never happen if the calculations are correct, but let's handle it just in case
-        console.warn("Unexpected state in getProgressionAtPosition. Returning first step.");
-        return {
-            progressionIndex: this.settings.currentProgressionIndex,
-            stepIndex: 0,
-            scale: currentProgression[0].scale,
-            transposition: currentProgression[0].transposition
-        };
+        // Fallback to first step if not found (shouldn't happen if calculations are correct)
+        return this.settings.song.active ? this.songProgressionSteps[0] : this.regularProgressionSteps[0];
     }
 }
 

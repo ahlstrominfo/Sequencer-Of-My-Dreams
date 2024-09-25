@@ -8,6 +8,7 @@ class TrackPlan {
         this.sequencer = sequencer;
         this.currentTriggerStep = 0;
         this.registeredListeners = {};
+        this.cachedDurations = [];
         this.setupTickerListeners();
         this.setTriggerPattern();
     }
@@ -25,6 +26,13 @@ class TrackPlan {
         this.triggerSteps = this.triggerPattern.triggerSteps;
         this.durations = this.triggerPattern.durations;
         this.currentTriggerStep = 0;
+        
+        // Calculate and cache the durations
+        const speedMultiplier = this.track.settings.speedMultiplier;
+        const pulsesPerSixteenth = this.sequencer.ticker.pulsesPerSixteenth;
+        this.cachedDurations = this.durations.map(stepDuration => 
+            Math.round((stepDuration * pulsesPerSixteenth) / speedMultiplier)
+        );
     }
 
     setupTickerListeners() {
@@ -68,13 +76,7 @@ class TrackPlan {
 
     durationForTriggerStep() {
         const triggerStep = this.getTriggerStep();
-        if (triggerStep === -1) {
-            return 0;
-        }
-        const stepDuration = this.durations[triggerStep];
-        const speedMultiplier = this.track.settings.speedMultiplier;
-        const pulsesPerSixteenth = this.sequencer.ticker.pulsesPerSixteenth;
-        return Math.round((stepDuration * pulsesPerSixteenth) / speedMultiplier);
+        return triggerStep === -1 ? 0 : this.cachedDurations[triggerStep];
     }
 
     hasTriggerStepAt() {

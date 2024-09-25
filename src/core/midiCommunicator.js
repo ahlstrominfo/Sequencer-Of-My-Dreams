@@ -10,6 +10,18 @@ class MidiCommunicator {
         this.output.send('clock');
     }
 
+    sendStart() {
+        this.output.send('start');
+    }
+
+    sendSongPosition(position) {
+        position = Math.min(position, 16383);
+
+        this.output.send('position', {
+            value: position
+        });
+    }
+
     close() {
         this.output.close();
     }

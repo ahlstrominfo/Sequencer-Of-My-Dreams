@@ -14,7 +14,8 @@ class TrackNotes {
     onTrackSettingsUpdate(newSettings) {
         if ('noteSeries' in newSettings) {
             this.noteSeriesCounter = new Array(newSettings.noteSeries.length).fill(1);
-            this.currentNoteSeriesStep = 0;
+            // this.currentNoteSeriesStep = 0;
+            this.updateCurrentNoteSeriesStep();
         }
     }
 
@@ -139,9 +140,6 @@ class TrackNotes {
     }
 
     scheduleNote(note, channel, startPulse, endPulse, velocity) {
-        // this.track.trackId === 1 && this.track.sequencer.logger.log(`pitch ${note} from ${startPulse} to ${endPulse}`);
-
-        // this.ticker.removeScheduledEvents({ type: 'noteoff', channel: channel, note: note });
         this.ticker.removeFutureNoteOffFromScheduledEvents(startPulse, note, channel);
         this.ticker.scheduleEvent(
             startPulse,

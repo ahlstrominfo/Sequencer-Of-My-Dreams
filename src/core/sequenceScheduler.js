@@ -2,6 +2,9 @@ class SequenceScheduler {
     constructor(sequencer) {
         this.sequencer = sequencer;
         this.scheduledEvents = [];
+
+        this.lastPositionHandeled = 0;
+        
     }
 
     scheduleEvent(bar, beat, callback, data = {}) {
@@ -16,6 +19,7 @@ class SequenceScheduler {
 
     processEvents() {
         const currentPosition = this.sequencer.ticker.getPosition();
+        if (this.lastPositionHandeled === currentPosition.pulse) return;
         const currentBar = currentPosition.bar;
         const currentBeat = currentPosition.beat;
 
@@ -25,6 +29,7 @@ class SequenceScheduler {
             const event = this.scheduledEvents.shift();
             event.callback();
         }
+        this.lastPositionHandeled = currentPosition.pulse;
     }
 
     sortEvents() {
