@@ -5,7 +5,7 @@ const { ARP_MODES_NAMES } = require("../utils/arps");
 class UINoteSeries extends UITableView {
     constructor(terminalUI, sequencer) {
         super(terminalUI, sequencer);
-        this.columnGroups = [7, 2, 8];
+        this.columnGroups = [7, 3, 8];
         this.nrPages = this.columnGroups.length;
     }
 
@@ -116,6 +116,21 @@ class UINoteSeries extends UITableView {
                     },
                     padding: 5,
                 },
+                {
+                    name: 'Ind A:B',
+                    value: () => `${series.aValueIndividualNote}:${series.bValueIndividualNote}`,
+                    handle: (delta, step) => {
+                        if (step === 1) {
+                            series.aValueIndividualNote = series.aValueIndividualNote + delta;
+                        } else {
+                            series.bValueIndividualNote = series.bValueIndividualNote + delta;
+                        }
+                        this.updateTrackSettingsAndReload({
+                            noteSeries: track.settings.noteSeries
+                        });
+                    },
+                    padding: 5,
+                },                
                 {
                     name: 'Arp',
                     value: () => ARP_MODES_NAMES[series.arpMode],

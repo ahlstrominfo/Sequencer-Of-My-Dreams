@@ -9,11 +9,13 @@ class TrackNotes {
         this.midi = this.track.sequencer.midi;
         this.currentNoteSeriesStep = 0;
         this.noteSeriesCounter = new Array(track.settings.noteSeries.length).fill(1);
+        this.individualNoteCounter = new Array(track.settings.noteSeries.length).fill(0);
     }
 
     onTrackSettingsUpdate(newSettings) {
         if ('noteSeries' in newSettings) {
             this.noteSeriesCounter = new Array(newSettings.noteSeries.length).fill(1);
+            this.individualNoteCounter = new Array(newSettings.noteSeries.length).fill(0);
             // this.currentNoteSeriesStep = 0;
             this.updateCurrentNoteSeriesStep();
         }
@@ -22,7 +24,6 @@ class TrackNotes {
     scheduleNotes({startPulse, maxDuration, defaultDuration, currentTriggerStep}) {
         if (this.checkTrackProbability()) {
             const trackSettings = this.track.settings;
-            const { bar, beat } = this.ticker.getPositionFromPulse(startPulse);
             let noteDuration = defaultDuration;
 
             let currentNoteSeriesStep = this.currentNoteSeriesStep;
@@ -41,21 +42,26 @@ class TrackNotes {
             if ((this.track.settings.arpMode === ARP_MODES.OFF 
                 && (noteSettings.arpMode === ARP_MODES.USE_TRACK || noteSettings.arpMode === undefined))
                 || noteSettings.arpMode === ARP_MODES.OFF) {
-                    this.schedueldChord(currentNoteSeriesStep, noteSettings, bar, beat, trackSettings, startPulse, noteDuration, defaultDuration);
+                    this.schedueldChord(currentNoteSeriesStep, startPulse, noteDuration);
             } else {
-                this.scheduleArpeggio(currentNoteSeriesStep, noteSettings, bar, beat, startPulse, noteDuration, defaultDuration);
+                this.scheduleArpeggio(currentNoteSeriesStep, startPulse, noteDuration, defaultDuration);
             }            
         }
 
         this.updateCurrentNoteSeriesStep();
     }
 
-    schedueldChord(currentNoteSeriesStep, noteSettings, bar, beat, trackSettings, startPulse, notesDuration) {
+    schedueldChord(currentNoteSeriesStep, startPulse, notesDuration) {
         if (this.checkNoteSeriesCounter(currentNoteSeriesStep)) {
+            const trackSettings = this.track.settings;
+            const noteSettings = trackSettings.noteSeries[currentNoteSeriesStep];
             const { timeOffset: swingOffset, velocityOffset } = this.calculateGrooveOffset(startPulse);
+            const { bar, beat } = this.ticker.getPositionFromPulse(startPulse + swingOffset);
+
+
             const chord = this.chordMakerForProgression(noteSettings, bar, beat);
             chord.forEach((note) => {
-                if (Math.random() * 100 < noteSettings.probability) {
+                if (Math.random() * 100 < noteSettings.probability && this.shouldPlayIndividualNote(currentNoteSeriesStep)) {
                     if (trackSettings.conformNotes) {
                         note = this.pitchForProgression(note, bar, beat);
                     }
@@ -67,8 +73,11 @@ class TrackNotes {
         this.advanceNoteSeriesCounter(currentNoteSeriesStep);
     }
 
-    scheduleArpeggio(currentNoteSeriesStep, noteSettings, bar, beat, startPulse, durationPulses, defaultDuration, maxDuration) {
-        let { wonkyArp, playMultiplier, arpMode } = this.track.settings;
+    scheduleArpeggio(currentNoteSeriesStep, startPulse, durationPulses, defaultDuration) {
+        const trackSettings = this.track.settings;
+        const noteSettings = trackSettings.noteSeries[currentNoteSeriesStep];
+
+        let { wonkyArp, playMultiplier, arpMode } = trackSettings;
 
         if (noteSettings.arpMode !== ARP_MODES.USE_TRACK) {
             arpMode = noteSettings.arpMode;
@@ -96,8 +105,6 @@ class TrackNotes {
         let arpStartPulse = startPulse;
         let arpPatternIndex = 0;
         while(stepsIterator > 0) {
-            
-            // this.ticker.getPositionFromPulse()
             const { timeOffset: swingOffset, velocityOffset } = this.calculateGrooveOffset(startPulse);
             const { bar, beat } = this.ticker.getPositionFromPulse(arpStartPulse + swingOffset);
 
@@ -116,18 +123,23 @@ class TrackNotes {
                     || (this.track.settings.arpMode === ARP_MODES.CHORD && noteSettings.arpMode === ARP_MODES.USE_TRACK)) 
                 {
                     chord.forEach((pitch) => {
+                        if (this.shouldPlayIndividualNote(currentNoteSeriesStep)) {
+                            if (this.track.settings.conformNotes) {
+                                pitch = this.pitchForProgression(pitch, bar, beat);
+                            }    
+                            this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + durationPulses) - (swingOffset + 1), adjustedVelocity);
+                        }
+                    });
+
+                } else {
+                    if (this.shouldPlayIndividualNote(currentNoteSeriesStep)) {
+                        let pitch = chord[arpPattern[arpPatternIndex]];
                         if (this.track.settings.conformNotes) {
                             pitch = this.pitchForProgression(pitch, bar, beat);
                         }    
                         this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + durationPulses) - (swingOffset + 1), adjustedVelocity);
-                    });
+                    }
 
-                } else {
-                    let pitch = chord[arpPattern[arpPatternIndex]];
-                    if (this.track.settings.conformNotes) {
-                        pitch = this.pitchForProgression(pitch, bar, beat);
-                    }    
-                    this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + durationPulses) - (swingOffset + 1), adjustedVelocity);
                 }
 
             }
@@ -135,15 +147,15 @@ class TrackNotes {
             arpStartPulse = arpStartPulse + durationPulses;
             stepsIterator--;
             arpPatternIndex = (arpPatternIndex + 1) % arpPattern.length;
-            this.advanceNoteSeriesCounter(currentNoteSeriesStep);
         }
+        this.advanceNoteSeriesCounter(currentNoteSeriesStep);
     }
 
     scheduleNote(note, channel, startPulse, endPulse, velocity) {
         this.ticker.removeFutureNoteOffFromScheduledEvents(startPulse, note, channel);
         this.ticker.scheduleEvent(
             startPulse,
-            (position) => {
+            () => {
                 this.midi.output.send('noteon', 
                     {
                         note: note,
@@ -161,7 +173,7 @@ class TrackNotes {
         );
         this.ticker.scheduleEvent(
             endPulse,
-            (position) => {
+            () => {
                 this.midi.output.send('noteoff', 
                     {
                         note: note,
@@ -239,6 +251,18 @@ class TrackNotes {
     advanceNoteSeriesCounter(noteIndex) {
         const noteSettings = this.track.settings.noteSeries[noteIndex];
         this.noteSeriesCounter[noteIndex] = (this.noteSeriesCounter[noteIndex] % noteSettings.bValue) + 1;
+    }
+
+    shouldPlayIndividualNote(noteSeriesIndex) {
+        const noteSettings = this.track.settings.noteSeries[noteSeriesIndex];
+        const { aValueIndividualNote, bValueIndividualNote } = noteSettings;
+        
+        // Increment the counter
+        this.individualNoteCounter[noteSeriesIndex] = 
+            (this.individualNoteCounter[noteSeriesIndex] + 1) % bValueIndividualNote;
+        
+        // Check if this note should be played
+        return (this.individualNoteCounter[noteSeriesIndex] + 1) === aValueIndividualNote;
     }
 
     checkTrackProbability() {
