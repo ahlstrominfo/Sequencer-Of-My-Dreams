@@ -17,19 +17,22 @@ class UITrackEdit extends UIBase {
                 enter: () => this.executeClear()
             },
             {
-                name: 'Copy To Track',
-                value: () => this.copyToTrackNumber,
-                handle: (delta, step) => {
-                    console.log(`Debug: delta=${delta}, step=${step}, current=${this.copyToTrackNumber}`);
-                    const newValue = this.copyToTrackNumber + delta * step;
-                    this.copyToTrackNumber = Math.max(1, Math.min(this.sequencer.tracks.length, newValue));
-                    console.log(`Debug: new value=${this.copyToTrackNumber}`);
-                }
-            },
-            {
-                name: 'Execute Copy',
-                value: () => 'Press Enter to copy',
-                enter: () => this.executeCopyTo()
+                name: 'Copy Track: ',
+                layout: 1,
+                cols: [
+                    {
+                        name: 'To Track',
+                        value: () => this.copyToTrackNumber,
+                        handle: (delta, step) => {
+                            const newValue = this.copyToTrackNumber + delta * step;
+                            this.copyToTrackNumber = Math.max(1, Math.min(this.sequencer.tracks.length, newValue));
+                        }
+                    },
+                    {
+                        name: 'Execute',
+                        enter: () => this.executeCopyTo()
+                    }
+                ]
             }
         ];
     }
