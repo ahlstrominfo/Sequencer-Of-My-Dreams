@@ -499,6 +499,18 @@ class Sequencer {
         this.listeners[event].push(callback);
     }
 
+    // Performance monitoring for pattern optimization
+    getPatternOptimizationStats() {
+        const { getPatternCacheStats } = require('../patterns/triggerPatterns');
+        
+        return {
+            globalPatternCache: getPatternCacheStats(),
+            trackPatternStats: this.tracks.map(track => track.trackPlan.getPatternStats()),
+            trackCount: this.tracks.length,
+            timestamp: Date.now()
+        };
+    }
+
     notifyListeners(event, data) {
         if (this.listeners[event]) {
             this.listeners[event].forEach(callback => callback(data));

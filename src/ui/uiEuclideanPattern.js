@@ -54,9 +54,11 @@ class UIEuclideanPattern extends UIBase {
         const settings = track.settings;
 
         const triggerSettings = settings.triggerSettings;
-                    const pattern = new EuclideanTriggerPattern(triggerSettings.length, triggerSettings.hits, triggerSettings.shift);
-                    const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
+        const pattern = new EuclideanTriggerPattern(triggerSettings.length, triggerSettings.hits, triggerSettings.shift);
+        const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
+        
+        // Use cached visualization instead of generating pattern string
+        const patternString = pattern.getVisualization(triggerLength);
         console.log('  Pattern:', patternString);
 
         console.log('------------------');

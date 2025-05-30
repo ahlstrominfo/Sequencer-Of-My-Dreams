@@ -9,30 +9,85 @@ class TrackPlan {
         this.currentTriggerStep = 0;
         this.registeredListeners = {};
         this.cachedDurations = [];
+        
+        // Pattern caching optimization
+        this._patternCacheKey = null;
+        this._lastSpeedMultiplier = null;
+        this._lastPulsesPerSixteenth = null;
+        
         this.setupTickerListeners();
         this.setTriggerPattern();
     }
 
     onTrackSettingsUpdate(newSettings) {
-        if ('triggerType' in newSettings || 'triggerSettings' in newSettings || 'resyncInterval' in newSettings || 'speedMultiplier' in newSettings) {
+        // Only regenerate pattern if trigger-related settings changed
+        const needsPatternUpdate = this._shouldUpdatePattern(newSettings);
+        
+        if (needsPatternUpdate) {
             this.setTriggerPattern();
+        } else if (this._shouldUpdateDurations(newSettings)) {
+            // Only recalculate durations if speed changed but pattern stays the same
+            this._updateCachedDurations();
         }
 
         this.trackNotes.onTrackSettingsUpdate(newSettings);
     }
 
-    setTriggerPattern() {
-        this.triggerPattern = triggerPatternFromSettings(this.track.settings);
-        this.triggerSteps = this.triggerPattern.triggerSteps;
-        this.durations = this.triggerPattern.durations;
-        this.currentTriggerStep = this.currentTriggerStep >= this.triggerPattern.length ? 0 : this.currentTriggerStep;
-        
-        // Calculate and cache the durations
+    _shouldUpdatePattern(newSettings) {
+        return 'triggerType' in newSettings || 
+               'triggerSettings' in newSettings || 
+               'resyncInterval' in newSettings;
+    }
+
+    _shouldUpdateDurations(newSettings) {
+        return 'speedMultiplier' in newSettings;
+    }
+
+    _generatePatternCacheKey() {
+        const { triggerType, triggerSettings, resyncInterval } = this.track.settings;
+        return JSON.stringify({
+            type: triggerType,
+            settings: triggerSettings,
+            resync: resyncInterval || 0
+        });
+    }
+
+    _updateCachedDurations() {
         const speedMultiplier = this.track.settings.speedMultiplier;
         const pulsesPerSixteenth = this.sequencer.ticker.pulsesPerSixteenth;
+        
+        // Cache these values to avoid repeated calculations
+        this._lastSpeedMultiplier = speedMultiplier;
+        this._lastPulsesPerSixteenth = pulsesPerSixteenth;
+        
         this.cachedDurations = this.durations.map(stepDuration => 
             Math.round((stepDuration * pulsesPerSixteenth) / speedMultiplier)
         );
+    }
+
+    setTriggerPattern() {
+        // Check if pattern actually needs to be regenerated
+        const newCacheKey = this._generatePatternCacheKey();
+        const speedMultiplier = this.track.settings.speedMultiplier;
+        const pulsesPerSixteenth = this.sequencer.ticker.pulsesPerSixteenth;
+        
+        const patternChanged = this._patternCacheKey !== newCacheKey;
+        const speedChanged = this._lastSpeedMultiplier !== speedMultiplier;
+        const pulsesChanged = this._lastPulsesPerSixteenth !== pulsesPerSixteenth;
+        
+        if (patternChanged) {
+            // Pattern actually changed, regenerate
+            this.triggerPattern = triggerPatternFromSettings(this.track.settings);
+            this.triggerSteps = this.triggerPattern.triggerSteps;
+            this.durations = this.triggerPattern.durations;
+            this.currentTriggerStep = this.currentTriggerStep >= this.triggerPattern.length ? 0 : this.currentTriggerStep;
+            this._patternCacheKey = newCacheKey;
+        }
+        
+        if (patternChanged || speedChanged || pulsesChanged) {
+            // Recalculate durations
+            this._updateCachedDurations();
+        }
     }
 
     setupTickerListeners() {
@@ -97,6 +152,19 @@ class TrackPlan {
     shouldTriggerEventAtPulse(pulse, pulsesPerEvent) {
         // Check if this pulse should trigger an event based on the adjusted interval
         return pulse % pulsesPerEvent === 0;
+    }
+
+    // Performance monitoring for pattern optimization
+    getPatternStats() {
+        return {
+            trackId: this.track.trackId,
+            patternCacheKey: this._patternCacheKey,
+            patternLength: this.triggerPattern ? this.triggerPattern.length : 0,
+            triggerStepsCount: this.triggerSteps ? this.triggerSteps.length : 0,
+            cachedDurationsCount: this.cachedDurations ? this.cachedDurations.length : 0,
+            lastSpeedMultiplier: this._lastSpeedMultiplier,
+            lastPulsesPerSixteenth: this._lastPulsesPerSixteenth
+        };
     }
 }
 

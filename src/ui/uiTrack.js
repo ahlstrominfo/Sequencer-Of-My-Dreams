@@ -37,8 +37,8 @@ class UITrack extends UIBase {
                     const triggerSettings = settings.triggerSettings;
                     const pattern = new EuclideanTriggerPattern(triggerSettings.length, triggerSettings.hits, triggerSettings.shift);
                     const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
-                    return patternString;
+                    // Use cached visualization
+                    return pattern.getVisualization(triggerLength);
                 },
                 enter: () => {
                     this.terminalUI.setView('euclideanPattern');
@@ -52,8 +52,8 @@ class UITrack extends UIBase {
                 value: () => {
                     const pattern = BinaryTriggerPattern.fromNumbers(settings.triggerSettings.numbers);
                     const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
-                    return patternString;
+                    // Use cached visualization
+                    return pattern.getVisualization(triggerLength);
                 },
                 enter: () => {
                     this.terminalUI.setView('binaryPattern');
@@ -68,8 +68,8 @@ class UITrack extends UIBase {
                     const triggerSettings = settings.triggerSettings;
                     const pattern = new StepTriggerPattern(triggerSettings.steps);
                     const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    const patternString = Array.from({ length: triggerLength }, (_, i) => pattern.shouldTrigger(i) ? '■' : '□').join('');
-                    return patternString;
+                    // Use cached visualization
+                    return pattern.getVisualization(triggerLength);
                 },
                 enter: () => {
                     this.terminalUI.setView('stepPattern');

@@ -19,6 +19,7 @@ class TriggerPattern {
         this.pattern = pattern;
         this.triggerSteps = [];
         this.durations = [];
+        this._cachedVisualizations = new Map(); // Cache for pattern visualizations
         this.precalculateDurations();
     }
 
@@ -30,6 +31,27 @@ class TriggerPattern {
         return this.pattern.length;
     }
 
+    // Optimized pattern visualization with caching
+    getVisualization(length = this.pattern.length) {
+        const cacheKey = `viz_${length}`;
+        if (this._cachedVisualizations.has(cacheKey)) {
+            return this._cachedVisualizations.get(cacheKey);
+        }
+        
+        const visualization = Array.from({ length }, (_, i) => 
+            this.shouldTrigger(i) ? '■' : '□'
+        ).join('');
+        
+        // Cache the visualization (limit cache size)
+        if (this._cachedVisualizations.size >= 10) {
+            const firstKey = this._cachedVisualizations.keys().next().value;
+            this._cachedVisualizations.delete(firstKey);
+        }
+        this._cachedVisualizations.set(cacheKey, visualization);
+        
+        return visualization;
+    }
+
     applyResyncInterval(resyncInterval) {
         if (resyncInterval && resyncInterval > 0 && this.pattern.length > 0) {
             let newPattern = [];
@@ -37,6 +59,7 @@ class TriggerPattern {
                 newPattern = newPattern.concat(this.pattern);
             }
             this.pattern = newPattern.slice(0, resyncInterval);
+            this._cachedVisualizations.clear(); // Clear cache when pattern changes
             this.precalculateDurations();
         }
     }
@@ -118,8 +141,25 @@ function createTriggerPattern(type, settings) {
     }
 }
 
+// Pattern cache to avoid recreating identical patterns
+const patternCache = new Map();
+
+function generateCacheKey(triggerType, triggerSettings, resyncInterval) {
+    return JSON.stringify({
+        type: triggerType,
+        settings: triggerSettings,
+        resync: resyncInterval || 0
+    });
+}
+
 function triggerPatternFromSettings(settings) {
     const { triggerType, triggerSettings, resyncInterval } = settings;
+    
+    // Check cache first
+    const cacheKey = generateCacheKey(triggerType, triggerSettings, resyncInterval);
+    if (patternCache.has(cacheKey)) {
+        return patternCache.get(cacheKey);
+    }
     
     const pattern = createTriggerPattern(triggerType, triggerSettings);
     
@@ -127,7 +167,28 @@ function triggerPatternFromSettings(settings) {
         pattern.applyResyncInterval(resyncInterval);
     }
     
+    // Cache the pattern (limit cache size to prevent memory leaks)
+    if (patternCache.size >= 100) {
+        // Remove oldest entry
+        const firstKey = patternCache.keys().next().value;
+        patternCache.delete(firstKey);
+    }
+    patternCache.set(cacheKey, pattern);
+    
     return pattern;
+}
+
+// Clear pattern cache (useful for memory management)
+function clearPatternCache() {
+    patternCache.clear();
+}
+
+// Get cache statistics for monitoring
+function getPatternCacheStats() {
+    return {
+        size: patternCache.size,
+        keys: Array.from(patternCache.keys())
+    };
 }
 
 module.exports = {
@@ -137,5 +198,7 @@ module.exports = {
     StepTriggerPattern,
     TRIGGER_TYPES,
     TRIGGER_TYPE_NAMES,
-    triggerPatternFromSettings
+    triggerPatternFromSettings,
+    clearPatternCache,
+    getPatternCacheStats
 };

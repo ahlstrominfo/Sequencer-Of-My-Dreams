@@ -30,7 +30,7 @@ Based on analysis of the execution flow from play button press to MIDI output, t
 - [ ] **Standardize error handling patterns**: Different modules use inconsistent error handling approaches.
 
 ### Performance Optimizations
-- [ ] **Optimize pattern generation**: Complex patterns recalculate on every tick - implement smart caching.
+- [x] **Optimize pattern generation**: ~~Complex patterns recalculate on every tick - implement smart caching.~~ **COMPLETED**: Implemented pattern caching in `triggerPatterns.js`, optimized TrackPlan pattern regeneration, and added visualization caching. Patterns are now cached globally and only regenerated when settings actually change.
 - [ ] **Reduce object allocation in hot paths**: The main tick loop creates many temporary objects.
 - [ ] **Implement lazy loading for large sequences**: Don't load entire sequence into memory if not needed.
 - [ ] **Add worker thread support**: Move heavy calculations off the main thread to prevent UI blocking.
