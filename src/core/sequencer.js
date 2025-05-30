@@ -28,8 +28,15 @@ class Sequencer {
         this.logger = new Logger();
         this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 
-
         this.loadActiveStates = false;
+
+        // Race condition and state management protection
+        this.isInitialized = false;
+        this.isStarting = false;
+        this.isStopping = false;
+        this.loopIsRunning = false;
+        this.lastToggleTime = 0;
+        this.toggleDebounceMs = 50; // Prevent rapid toggles within 50ms
 
         this.cleanSequencer();
         this.setupClockCallbacks();
@@ -39,7 +46,8 @@ class Sequencer {
         this.maxBeats = 0;
         this.progressionSteps = [];
 
-        this.loopIsRunning = false;
+        // Mark as initialized after all components are set up
+        this.isInitialized = true;
     }
 
     setupClockCallbacks() {
@@ -77,27 +85,108 @@ class Sequencer {
     }
 
     start() {
-        if (!this.isPlaying) {
+        // Check if sequencer is properly initialized
+        if (!this.isInitialized) {
+            this.logger.log('Cannot start sequencer: not fully initialized');
+            return false;
+        }
+
+        // Prevent race conditions during start/stop operations
+        if (this.isStarting || this.isStopping) {
+            this.logger.log('Cannot start sequencer: start/stop operation already in progress');
+            return false;
+        }
+
+        // Already playing
+        if (this.isPlaying) {
+            return true;
+        }
+
+        // Set starting flag to prevent race conditions
+        this.isStarting = true;
+
+        try {
+            // Verify all required components are ready
+            if (!this.ticker || !this.scheduler || !this.midi) {
+                throw new Error('Required components not available');
+            }
+
+            // Verify tracks are initialized
+            if (this.tracks.length === 0) {
+                throw new Error('No tracks available');
+            }
+
+            // Start the ticker
             this.ticker.start();
 
-            if (this.settings.song.active) {
+            // Plan song if active
+            if (this.settings.song && this.settings.song.active) {
                 this.planSong();
             }
-    
+
+            // Set playing state
             this.isPlaying = true;
-    
+
+            // Start the schedule loop if not already running
             if (!this.loopIsRunning) {
+                this.loopIsRunning = true;
                 this.scheduleLoop();
             }
+
+            this.logger.log('Sequencer started successfully');
+            return true;
+
+        } catch (error) {
+            this.logger.log(`Failed to start sequencer: ${error.message}`);
+            this.isPlaying = false;
+            return false;
+        } finally {
+            // Clear starting flag
+            this.isStarting = false;
         }
     }
     
     stop() {
-        if (this.isPlaying) {
-            this.ticker.stop();
-            this.isPlaying = false;
-            this.scheduler.clearEvents();
+        // Prevent race conditions during start/stop operations
+        if (this.isStarting || this.isStopping) {
+            this.logger.log('Cannot stop sequencer: start/stop operation already in progress');
+            return false;
+        }
 
+        // Already stopped
+        if (!this.isPlaying) {
+            return true;
+        }
+
+        // Set stopping flag to prevent race conditions
+        this.isStopping = true;
+
+        try {
+            // Stop the ticker
+            if (this.ticker) {
+                this.ticker.stop();
+            }
+
+            // Clear scheduled events
+            if (this.scheduler) {
+                this.scheduler.clearEvents();
+            }
+
+            // Set playing state to false
+            this.isPlaying = false;
+
+            // Note: loopIsRunning will naturally stop when isPlaying becomes false
+            // We don't force-stop it here to avoid race conditions in scheduleLoop
+
+            this.logger.log('Sequencer stopped successfully');
+            return true;
+
+        } catch (error) {
+            this.logger.log(`Error stopping sequencer: ${error.message}`);
+            return false;
+        } finally {
+            // Clear stopping flag
+            this.isStopping = false;
         }
     }
     
@@ -151,10 +240,26 @@ class Sequencer {
     } 
 
     tooglePlay() {
+        const currentTime = Date.now();
+        
+        // Debounce rapid toggle requests
+        if (currentTime - this.lastToggleTime < this.toggleDebounceMs) {
+            this.logger.log('Toggle request ignored: too rapid');
+            return false;
+        }
+        
+        this.lastToggleTime = currentTime;
+
+        // Prevent toggles during start/stop operations
+        if (this.isStarting || this.isStopping) {
+            this.logger.log('Toggle request ignored: operation in progress');
+            return false;
+        }
+
         if (this.isPlaying) {
-            this.stop();
+            return this.stop();
         } else {
-            this.start();
+            return this.start();
         }   
     }
 
@@ -245,10 +350,14 @@ class Sequencer {
     }    
 
     scheduleLoop() {
-        if (this.isPlaying) {
+        if (this.isPlaying && this.loopIsRunning) {
             this.scheduler.processEvents();
-        }         
-        this.realTimeKeeper.setTimeout(() => this.scheduleLoop(), 1);
+            // Schedule next iteration
+            this.realTimeKeeper.setTimeout(() => this.scheduleLoop(), 1);
+        } else {
+            // Loop is stopping
+            this.loopIsRunning = false;
+        }
     }
 
     calculateProgressionSteps() {
@@ -314,8 +423,12 @@ class Sequencer {
     
     gracefulShutdown() {
         this.stop();
-        this.ticker.sendAllNoteOffEvents();
-        this.midi.close();
+        
+        // Wait a moment for any pending operations to complete
+        setTimeout(() => {
+            this.ticker.sendAllNoteOffEvents();
+            this.midi.close();
+        }, 10);
     }
 
     cleanSequencer() {
@@ -324,6 +437,12 @@ class Sequencer {
         this.tracks.forEach(track => {
             track.trackPlan.teardownTickerListeners();
         });
+
+        // Reset state flags
+        this.isStarting = false;
+        this.isStopping = false;
+        this.loopIsRunning = false;
+        this.lastToggleTime = 0;
 
         // this.ticker.clearAllListeners();
         this.tracks = [];

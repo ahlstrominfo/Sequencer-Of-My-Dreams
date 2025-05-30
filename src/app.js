@@ -24,8 +24,8 @@ const logger = new Logger();
 const sequencer = new Sequencer(120, 24, timeKeeper);
 const ui = new TerminalUI(sequencer);
 
-sequencer.logger = logger;
-ui.logger = logger;
+// sequencer.logger = logger;
+// ui.logger = logger;
 ui.views.sequencerSettings.loadFromTmp();
 ui.start();
 
