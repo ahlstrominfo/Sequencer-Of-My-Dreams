@@ -37,6 +37,12 @@ class Ticker {
         this.eventCounter = 0; // For stable sorting when events have same pulse
         this.sortedEventCache = new Map(); // Cache sorted events by pulse
         this.lastSortedPulse = -1;
+        
+        // Memory management improvements
+        this.maxPositionCacheSize = 200; // Prevent unbounded cache growth
+        this.maxScheduledEvents = 10000; // Prevent runaway event accumulation
+        this.cacheCleanupInterval = 100; // Clean cache every N pulses
+        this.lastCacheCleanup = 0;
     }
 
     start() {
@@ -139,6 +145,15 @@ class Ticker {
             return;
         }
 
+        // Prevent runaway event accumulation
+        if (this.scheduledEvents.length >= this.maxScheduledEvents) {
+            this.sequencer.logger.log(`Event limit reached (${this.maxScheduledEvents}), oldest events will be removed`);
+            // Remove oldest events that are in the past
+            this.scheduledEvents = this.scheduledEvents.filter(event => 
+                event.pulse >= this.currentPulse
+            ).slice(-this.maxScheduledEvents / 2); // Keep only most recent half
+        }
+
         // Add event with ordering information for stable sorting
         this.scheduledEvents.push({
             pulse: pulse,
@@ -231,9 +246,10 @@ class Ticker {
                 timingDrift: this.timingDrift
             });
 
-            // Clean position cache periodically to prevent memory bloat
-            if (this.positionCache.size > 100) {
-                this.positionCache.clear();
+            // Periodic cache cleanup to prevent memory bloat
+            if (this.currentPulse - this.lastCacheCleanup >= this.cacheCleanupInterval) {
+                this.cleanupCaches();
+                this.lastCacheCleanup = this.currentPulse;
             }
 
             // Handle hierarchical timing events with stable ordering
@@ -397,6 +413,43 @@ class Ticker {
             sortedEventCacheSize: this.sortedEventCache.size,
             eventCounter: this.eventCounter,
             lastSortedPulse: this.lastSortedPulse
+        };
+    }
+
+    // Memory management methods
+    cleanupCaches() {
+        // Clean position cache if it's getting too large
+        if (this.positionCache.size > this.maxPositionCacheSize) {
+            this.positionCache.clear();
+        }
+        
+        // Clean sorted event cache
+        this.sortedEventCache.clear();
+        
+        // Remove old scheduled events that are significantly in the past
+        const cutoffPulse = this.currentPulse - (this.pulsesPerBeat * 4); // Keep last 4 beats
+        this.scheduledEvents = this.scheduledEvents.filter(event => 
+            event.pulse >= cutoffPulse
+        );
+    }
+
+    clearAllScheduledEvents() {
+        this.scheduledEvents = [];
+        this.eventCounter = 0;
+        this.sortedEventCache.clear();
+        this.lastSortedPulse = -1;
+    }
+
+    // Get memory usage statistics
+    getMemoryStats() {
+        return {
+            scheduledEventsCount: this.scheduledEvents.length,
+            positionCacheSize: this.positionCache.size,
+            sortedEventCacheSize: this.sortedEventCache.size,
+            eventCounter: this.eventCounter,
+            listenersCount: Array.from(this.listeners.values()).reduce((sum, map) => sum + map.size, 0),
+            isRunning: this.isRunning,
+            currentPulse: this.currentPulse
         };
     }
 }

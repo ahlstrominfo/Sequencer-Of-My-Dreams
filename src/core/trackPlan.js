@@ -15,6 +15,9 @@ class TrackPlan {
         this._lastSpeedMultiplier = null;
         this._lastPulsesPerSixteenth = null;
         
+        // Memory management
+        this._isDestroyed = false;
+        
         this.setupTickerListeners();
         this.setTriggerPattern();
     }
@@ -101,8 +104,14 @@ class TrackPlan {
     }
 
     teardownTickerListeners() {
-        this.sequencer.ticker.unregisterListener('plan', this.registeredListeners.plan);
-        this.sequencer.ticker.unregisterListener('reset', this.registeredListeners.reset);
+        if (this.registeredListeners.plan) {
+            this.sequencer.ticker.unregisterListener('plan', this.registeredListeners.plan);
+            this.registeredListeners.plan = null;
+        }
+        if (this.registeredListeners.reset) {
+            this.sequencer.ticker.unregisterListener('reset', this.registeredListeners.reset);
+            this.registeredListeners.reset = null;
+        }
     }
 
     planEvents(position) {
@@ -164,6 +173,58 @@ class TrackPlan {
             cachedDurationsCount: this.cachedDurations ? this.cachedDurations.length : 0,
             lastSpeedMultiplier: this._lastSpeedMultiplier,
             lastPulsesPerSixteenth: this._lastPulsesPerSixteenth
+        };
+    }
+
+    // Clean up method to prevent memory leaks
+    cleanup() {
+        if (this._isDestroyed) {
+            return; // Already cleaned up
+        }
+        
+        this._isDestroyed = true;
+        
+        // Clean up ticker listeners
+        this.teardownTickerListeners();
+        
+        // Clean up trackNotes
+        if (this.trackNotes) {
+            this.trackNotes.cleanup();
+            this.trackNotes = null;
+        }
+        
+        // Clear cached data
+        this.cachedDurations = [];
+        this.triggerSteps = null;
+        this.durations = null;
+        this.triggerPattern = null;
+        
+        // Clear cache keys
+        this._patternCacheKey = null;
+        this._lastSpeedMultiplier = null;
+        this._lastPulsesPerSixteenth = null;
+        
+        // Clear references
+        this.track = null;
+        this.sequencer = null;
+        this.registeredListeners = {};
+    }
+
+    // Ensure cleanup is called before destruction
+    destroy() {
+        this.cleanup();
+    }
+
+    // Get memory usage statistics
+    getMemoryStats() {
+        return {
+            trackId: this.track ? this.track.trackId : 'destroyed',
+            isDestroyed: this._isDestroyed,
+            cachedDurationsLength: this.cachedDurations ? this.cachedDurations.length : 0,
+            hasPatternCacheKey: Boolean(this._patternCacheKey),
+            hasTriggerPattern: Boolean(this.triggerPattern),
+            registeredListenersCount: Object.keys(this.registeredListeners).length,
+            trackNotesStats: this.trackNotes ? this.trackNotes.getMemoryStats() : null
         };
     }
 }

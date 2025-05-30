@@ -10,6 +10,9 @@ class TrackNotes {
         this.currentNoteSeriesStep = 0;
         this.noteSeriesCounter = new Array(track.settings.noteSeries.length).fill(1);
         this.individualNoteCounter = new Array(track.settings.noteSeries.length).fill(0);
+        
+        // Track scheduled events for cleanup
+        this.scheduledNoteEvents = new Set();
     }
 
     onTrackSettingsUpdate(newSettings) {
@@ -164,6 +167,25 @@ class TrackNotes {
 
     scheduleNote(note, channel, startPulse, endPulse, velocity) {
         this.ticker.removeFutureNoteOffFromScheduledEvents(startPulse, note, channel);
+        
+        const noteOnEventData = {
+            type: 'noteon',
+            note: note,
+            channel: channel,
+            trackId: this.track.trackId,
+        };
+        
+        const noteOffEventData = {
+            type: 'noteoff',
+            note: note,
+            channel: channel,
+            trackId: this.track.trackId,
+        };
+        
+        // Track these events for cleanup
+        this.scheduledNoteEvents.add(`${startPulse}-${note}-${channel}-on`);
+        this.scheduledNoteEvents.add(`${endPulse}-${note}-${channel}-off`);
+        
         this.ticker.scheduleEvent(
             startPulse,
             () => {
@@ -174,13 +196,10 @@ class TrackNotes {
                         channel: channel,
                     }
                 );
+                // Remove from tracking once processed
+                this.scheduledNoteEvents.delete(`${startPulse}-${note}-${channel}-on`);
             },
-            {
-                type: 'noteon',
-                note: note,
-                channel: channel,
-                trackId: this.track.trackId,
-            }
+            noteOnEventData
         );
         this.ticker.scheduleEvent(
             endPulse,
@@ -192,13 +211,10 @@ class TrackNotes {
                         channel: channel,
                     }
                 );
+                // Remove from tracking once processed
+                this.scheduledNoteEvents.delete(`${endPulse}-${note}-${channel}-off`);
             },
-            {
-                type: 'noteoff',
-                note: note,
-                channel: channel,
-                trackId: this.track.trackId,
-            }
+            noteOffEventData
         );        
     }
 
@@ -324,6 +340,35 @@ class TrackNotes {
         const velocityOffset = Math.round((baseVelocity * velocityOffsetPercentage) / 100);
         const adjustedVelocity = Math.max(1, Math.min(127, baseVelocity + velocityOffset));
         return Math.round(adjustedVelocity * (volume / 100));
+    }
+
+    // Clean up method to prevent memory leaks
+    cleanup() {
+        // Clear all counters
+        this.noteSeriesCounter.fill(1);
+        this.individualNoteCounter.fill(0);
+        this.currentNoteSeriesStep = 0;
+        
+        // Clear tracking of scheduled events
+        this.scheduledNoteEvents.clear();
+        
+        // Remove any pending note-off events for this track
+        if (this.ticker && this.ticker.scheduledEvents) {
+            this.ticker.scheduledEvents = this.ticker.scheduledEvents.filter(event => 
+                !event.data || event.data.trackId !== this.track.trackId
+            );
+        }
+    }
+    
+    // Get memory usage statistics
+    getMemoryStats() {
+        return {
+            trackId: this.track.trackId,
+            noteSeriesCounterLength: this.noteSeriesCounter.length,
+            individualNoteCounterLength: this.individualNoteCounter.length,
+            scheduledNoteEventsCount: this.scheduledNoteEvents.size,
+            currentNoteSeriesStep: this.currentNoteSeriesStep
+        };
     }
 }
 

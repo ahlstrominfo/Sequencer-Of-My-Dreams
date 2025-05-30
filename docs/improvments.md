@@ -17,9 +17,9 @@ Based on analysis of the execution flow from play button press to MIDI output, t
 - [ ] **Handle sequence overflow**: Add protection against sequences that exceed reasonable memory or processing limits.
 
 ### Memory Management
-- [ ] **Fix potential memory leaks in event scheduling**: TrackNotes and TrackPlan may accumulate events without proper cleanup.
+- [x] **Fix potential memory leaks in event scheduling**: ~~TrackNotes and TrackPlan may accumulate events without proper cleanup.~~ **COMPLETED**: Implemented comprehensive cleanup methods in TrackNotes, TrackPlan, and Track classes. Added proper listener teardown, event tracking, memory limits in Ticker, and periodic cache cleanup to prevent unbounded growth.
 - [ ] **Implement event pool recycling**: Reuse event objects instead of creating new ones constantly.
-- [ ] **Add cleanup for stopped sequences**: Ensure all timers and scheduled events are properly cleared when stopping.
+- [x] **Add cleanup for stopped sequences**: ~~Ensure all timers and scheduled events are properly cleared when stopping.~~ **COMPLETED**: Added clearAllScheduledEvents() method in Ticker and improved sequencer cleanup process to properly clear all scheduled events and timers when stopping.
 
 ## Medium Priority Improvements
 

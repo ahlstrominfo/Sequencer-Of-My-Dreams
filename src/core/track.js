@@ -138,8 +138,48 @@ class Track {
         // Additional logic after updating settings
         // this.trackScheduler.onTrackSettingsUpdate(newSettings, this.settings);
         this.trackPlan.onTrackSettingsUpdate(newSettings, this.settings);
+
         shouldSaveToTmp && this.sequencer.sequenceManager.saveToTmp();
         this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
+    }
+
+    getSettings() {
+        return this.settings;
+    }
+
+    // Clean up method to prevent memory leaks
+    cleanup() {
+        if (this.trackPlan) {
+            this.trackPlan.cleanup();
+            this.trackPlan = null;
+        }
+        
+        // Clear settings arrays to free memory
+        if (this.settings) {
+            this.settings.noteSeries = [];
+            this.settings.groove = [];
+            this.settings.triggerSettings = {};
+            this.settings = null;
+        }
+        
+        // Clear references
+        this.sequencer = null;
+    }
+
+    // Ensure cleanup is called before destruction
+    destroy() {
+        this.cleanup();
+    }
+
+    // Get memory usage statistics
+    getMemoryStats() {
+        return {
+            trackId: this.trackId,
+            hasTrackPlan: Boolean(this.trackPlan),
+            noteSeriesLength: this.settings ? this.settings.noteSeries.length : 0,
+            grooveLength: this.settings ? this.settings.groove.length : 0,
+            trackPlanStats: this.trackPlan ? this.trackPlan.getMemoryStats() : null
+        };
     }
 }
 

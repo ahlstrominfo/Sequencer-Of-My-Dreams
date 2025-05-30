@@ -80,6 +80,8 @@ class Sequencer {
     removeTrack(track) {
         const index = this.tracks.indexOf(track);
         if (index !== -1) {
+            // Clean up the track before removing it
+            this.tracks[index].cleanup();
             this.tracks.splice(index, 1);
         }
     }
@@ -433,10 +435,28 @@ class Sequencer {
 
     cleanSequencer() {
         this.stop();
+        
+        // Send all note-off events before cleanup
         this.ticker.sendAllNoteOffEvents();
+        
+        // Clean up all tracks properly
         this.tracks.forEach(track => {
-            track.trackPlan.teardownTickerListeners();
+            if (track && track.trackPlan) {
+                track.trackPlan.teardownTickerListeners();
+            }
+            if (track) {
+                track.cleanup();
+            }
         });
+
+        // Clear all scheduled events
+        if (this.ticker) {
+            this.ticker.clearAllScheduledEvents();
+        }
+        
+        if (this.scheduler) {
+            this.scheduler.clearEvents();
+        }
 
         // Reset state flags
         this.isStarting = false;
@@ -444,8 +464,10 @@ class Sequencer {
         this.loopIsRunning = false;
         this.lastToggleTime = 0;
 
-        // this.ticker.clearAllListeners();
+        // Clear tracks array
         this.tracks = [];
+        
+        // Recreate tracks with default settings
         for (let i = 0; i < 16; i++) {
             let defaultTrackSettings = { channel: i + 1 };
             if (i > 9) { // 10 and above will be drums by default
@@ -454,6 +476,7 @@ class Sequencer {
             }
             this.addTrack(defaultTrackSettings);
         }
+        
         this.settings.currentActiveState = 0;
         this.settings.activeStates = Array(16).fill().map(() => Array(16).fill(true));
         this.settings.bpm = 120;
@@ -468,28 +491,45 @@ class Sequencer {
         };
         this.settings.currentProgressionIndex = 0;
         this.updateSettings(this.settings, false);
+    }
+
+    // Get comprehensive memory usage statistics
+    getMemoryStats() {
+        return {
+            isPlaying: this.isPlaying,
+            isStarting: this.isStarting,
+            isStopping: this.isStopping,
+            loopIsRunning: this.loopIsRunning,
+            tracksCount: this.tracks.length,
+            tickerStats: this.ticker ? this.ticker.getMemoryStats() : null,
+            schedulerStats: this.scheduler ? this.scheduler.getStats() : null,
+            trackStats: this.tracks.map(track => track.getMemoryStats()),
+            patternOptimizationStats: this.getPatternOptimizationStats()
+        };
+    }
+
+    // Monitor for potential memory leaks
+    checkMemoryLeaks() {
+        const stats = this.getMemoryStats();
         
-    }
-
-    copySettingsToTrack(fromTrackIndex, toTrackIndex) {
-        if (fromTrackIndex >= 0 && fromTrackIndex < this.tracks.length &&
-            toTrackIndex >= 0 && toTrackIndex < this.tracks.length) {
-            const fromTrack = this.tracks[fromTrackIndex];
-            const toTrack = this.tracks[toTrackIndex];
-            toTrack.updateSettings(fromTrack.getSettings());
+        // Check for excessive scheduled events
+        if (stats.tickerStats && stats.tickerStats.scheduledEventsCount > 5000) {
+            this.logger.log(`WARNING: High number of scheduled events: ${stats.tickerStats.scheduledEventsCount}`);
         }
-    }
-
-    updateActiveState(index) {
-        this.settings.activeStates[this.settings.currentActiveState] = this.tracks.map(track => track.settings.isActive);
-        this.updateSettings({ currentActiveState: index }, true);   
-    }
-
-    setActiveState() {
-        const index = this.settings.currentActiveState;
-        this.tracks.forEach((track, i) => {
-            track.updateSettings({ isActive: this.settings.activeStates[index][i] });
+        
+        // Check for excessive cache sizes
+        if (stats.tickerStats && stats.tickerStats.positionCacheSize > 500) {
+            this.logger.log(`WARNING: Large position cache: ${stats.tickerStats.positionCacheSize}`);
+        }
+        
+        // Check for track memory issues
+        stats.trackStats.forEach((trackStat, index) => {
+            if (trackStat.trackPlanStats && trackStat.trackPlanStats.isDestroyed) {
+                this.logger.log(`WARNING: Track ${index} has destroyed TrackPlan but is still referenced`);
+            }
         });
+        
+        return stats;
     }
 
     registerListener(event, callback) {
