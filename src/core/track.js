@@ -147,6 +147,43 @@ class Track {
         return this.settings;
     }
 
+    // Reset track to default settings
+    reset() {
+        this.settings = {
+            ...this.defaultSettings,
+            noteSeries: JSON.parse(JSON.stringify(this.defaultSettings.noteSeries)), // Deep copy of noteSeries
+            triggerSettings: JSON.parse(JSON.stringify(this.defaultSettings.triggerSettings)), // Deep copy of triggerSettings
+            groove: [...this.defaultSettings.groove] // Copy groove array
+        };
+        
+        // Notify trackPlan of the reset
+        this.trackPlan.onTrackSettingsUpdate(this.settings);
+        
+        // Save to tmp and notify listeners
+        this.sequencer.sequenceManager.saveToTmp();
+        this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
+    }
+
+    // Copy settings from another track
+    copyFrom(sourceTrack) {
+        const sourceSettings = sourceTrack.getSettings();
+        
+        // Deep copy the source settings
+        this.settings = {
+            ...sourceSettings,
+            noteSeries: JSON.parse(JSON.stringify(sourceSettings.noteSeries)),
+            triggerSettings: JSON.parse(JSON.stringify(sourceSettings.triggerSettings)),
+            groove: [...sourceSettings.groove]
+        };
+        
+        // Notify trackPlan of the change
+        this.trackPlan.onTrackSettingsUpdate(this.settings);
+        
+        // Save to tmp and notify listeners
+        this.sequencer.sequenceManager.saveToTmp();
+        this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
+    }
+
     // Clean up method to prevent memory leaks
     cleanup() {
         if (this.trackPlan) {

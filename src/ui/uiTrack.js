@@ -294,6 +294,19 @@ class UITrack extends UIBase {
             }
         });
 
+        this.rows.push({
+            name: '  ----------------',
+            selectable: false
+        });
+
+        this.rows.push({
+            name: 'Edit',
+            value: 'Edit',
+            enter: () => {
+                this.terminalUI.setView('trackEdit');
+            }
+        });
+
     }
 
     handleEscape() {

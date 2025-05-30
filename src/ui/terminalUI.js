@@ -6,6 +6,7 @@ const UIStepPattern = require('./uiStepPattern');
 const UILoadSequence = require('./uiLoadSequence');
 const UIProgression = require('./uiProgression');
 const UITrack = require('./uiTrack');
+const UITrackEdit = require('./uiTrackEdit');
 const UIGroove = require('./uiGroove');
 const UIMain = require('./uiMain');
 const UIStepFunctions = require('./uiStepFunctions');
@@ -33,6 +34,7 @@ class TerminalUI {
             loadSequence: new UILoadSequence(this, sequencer),
             progression: new UIProgression(this, sequencer),
             track: new UITrack(this, sequencer),
+            trackEdit: new UITrackEdit(this, sequencer),
             groove: new UIGroove(this, sequencer),
             songMode: new UISongMode(this, sequencer),
         };
