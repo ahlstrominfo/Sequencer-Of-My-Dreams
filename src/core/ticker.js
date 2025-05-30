@@ -26,13 +26,32 @@ class Ticker {
         this.pulseInterval = this.calculatePulseInterval();
 
         this.sequencer = sequencer;
+
+        // Timing precision improvements
+        this.startTime = 0;
+        this.expectedPulseTime = 0;
+        this.timingDrift = 0;
+        this.maxTimingDrift = 5; // Maximum acceptable drift in milliseconds
+        
+        // Event ordering improvements
+        this.eventCounter = 0; // For stable sorting when events have same pulse
+        this.sortedEventCache = new Map(); // Cache sorted events by pulse
+        this.lastSortedPulse = -1;
     }
 
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
-            this.lastPulseTime = this.timeKeeper.getCurrentTime();
+            this.startTime = this.timeKeeper.getCurrentTime();
+            this.lastPulseTime = this.startTime;
+            this.expectedPulseTime = this.startTime;
             this.currentPulse = 0;
+            this.timingDrift = 0;
+            
+            // Reset event ordering counter
+            this.eventCounter = 0;
+            this.sortedEventCache.clear();
+            this.lastSortedPulse = -1;
             
             // Send initial plan message for beat 0
             this.notifyListeners('plan', {
@@ -53,6 +72,15 @@ class Ticker {
         this.sendAllNoteOffEvents();
         this.currentPulse = 0;
         this.scheduledEvents = [];
+        
+        // Reset timing precision tracking
+        this.startTime = 0;
+        this.expectedPulseTime = 0;
+        this.timingDrift = 0;
+        this.eventCounter = 0;
+        this.sortedEventCache.clear();
+        this.lastSortedPulse = -1;
+        
         this.notifyListeners('reset');
     }
 
@@ -65,8 +93,20 @@ class Ticker {
     }
 
     setBPM(bpm) {
+        const oldBpm = this.bpm;
         this.bpm = bpm;
         this.pulseInterval = this.calculatePulseInterval();
+        
+        // If ticker is running, adjust timing to maintain sync
+        if (this.isRunning) {
+            const currentTime = this.timeKeeper.getCurrentTime();
+            
+            // Adjust start time to maintain phase alignment
+            this.startTime = currentTime - (this.currentPulse * this.pulseInterval);
+            this.expectedPulseTime = this.startTime + (this.currentPulse * this.pulseInterval);
+            
+            this.sequencer.logger.log(`BPM changed from ${oldBpm} to ${bpm}, adjusted timing`);
+        }
     }
 
     setTimeSignature(numerator, denominator) {
@@ -99,48 +139,104 @@ class Ticker {
             return;
         }
 
+        // Add event with ordering information for stable sorting
         this.scheduledEvents.push({
             pulse: pulse,
             callback,
-            data
+            data,
+            eventId: ++this.eventCounter, // Ensures stable sort order for same-pulse events
+            scheduledAt: this.timeKeeper.getCurrentTime() // Track when event was scheduled
         });
 
-        // Sort events by pulse to ensure they're processed in the correct order
-        this.scheduledEvents.sort((a, b) => a.pulse - b.pulse);
+        // Invalidate cache if we're adding events before or at the last sorted pulse
+        if (pulse <= this.lastSortedPulse) {
+            this.sortedEventCache.clear();
+            this.lastSortedPulse = -1;
+        }
+
+        // Sort events by pulse, then by eventId for deterministic ordering
+        this.scheduledEvents.sort((a, b) => {
+            if (a.pulse !== b.pulse) {
+                return a.pulse - b.pulse;
+            }
+            // For same pulse, maintain insertion order via eventId
+            return a.eventId - b.eventId;
+        });
     }
 
     processScheduledEvents() {
-        while (this.scheduledEvents.length > 0 && this.scheduledEvents[0].pulse <= this.currentPulse) {
+        let processedCount = 0;
+        const maxEventsPerPulse = 100; // Prevent infinite loops with too many events
+        
+        while (this.scheduledEvents.length > 0 && 
+               this.scheduledEvents[0].pulse <= this.currentPulse &&
+               processedCount < maxEventsPerPulse) {
+            
             const event = this.scheduledEvents.shift();
-            event.callback(this.getPositionFromPulse(event.pulse));
-
-            this.notifyListeners('eventHappening', event);
+            
+            try {
+                // Call event callback with position and timing information
+                const eventPosition = this.getPositionFromPulse(event.pulse);
+                eventPosition.eventId = event.eventId;
+                eventPosition.scheduledAt = event.scheduledAt;
+                
+                event.callback(eventPosition);
+                
+                // Notify listeners that an event occurred
+                this.notifyListeners('eventHappening', {
+                    ...event,
+                    processedAt: this.timeKeeper.getCurrentTime(),
+                    position: eventPosition
+                });
+                
+            } catch (error) {
+                this.sequencer.logger.log(`Error processing scheduled event: ${error.message}`);
+            }
+            
+            processedCount++;
         }
+        
+        // Log if we hit the event limit
+        if (processedCount >= maxEventsPerPulse && this.scheduledEvents.length > 0) {
+            this.sequencer.logger.log(`Event processing limit reached (${maxEventsPerPulse}), ${this.scheduledEvents.length} events remaining`);
+        }
+        
+        // Update cache tracking
+        this.lastSortedPulse = this.currentPulse;
     }
 
      pulse() {
         if (!this.isRunning) return;
 
         const currentTime = this.timeKeeper.getCurrentTime();
-        const pulseInterval = this.pulseInterval;
+        
+        // Calculate expected time for this pulse (ideal timing)
+        this.expectedPulseTime = this.startTime + (this.currentPulse * this.pulseInterval);
+        
+        // Calculate timing drift
+        this.timingDrift = currentTime - this.expectedPulseTime;
 
-        // Check if it's time for the next pulse
-        if (currentTime - this.lastPulseTime >= pulseInterval) {
-            this.lastPulseTime = currentTime;
-
-            // Process scheduled events
+        // Only process pulse if we're at or past the expected time
+        if (currentTime >= this.expectedPulseTime) {
+            // Process scheduled events BEFORE advancing pulse
             this.processScheduledEvents();
 
             const position = this.getPosition();
 
-            // Notify listeners
-            this.notifyListeners('pulse', position);
-            // this.sequencer.midi.sendClock();
+            // Notify listeners with precise timing information
+            this.notifyListeners('pulse', {
+                ...position,
+                actualTime: currentTime,
+                expectedTime: this.expectedPulseTime,
+                timingDrift: this.timingDrift
+            });
 
+            // Clean position cache periodically to prevent memory bloat
             if (this.positionCache.size > 100) {
                 this.positionCache.clear();
             }
 
+            // Handle hierarchical timing events with stable ordering
             if (position.pulse === 0) {
                 this.notifyListeners('16th', position);
 
@@ -154,11 +250,24 @@ class Ticker {
                 }
             }
 
+            // Advance pulse counter
             this.currentPulse++;
+            
+            // Update last pulse time to current expected time for drift compensation
+            this.lastPulseTime = this.expectedPulseTime;
+        }
+
+        // Calculate next timeout with drift compensation
+        const nextExpectedTime = this.startTime + ((this.currentPulse + 1) * this.pulseInterval);
+        const timeUntilNext = Math.max(1, nextExpectedTime - currentTime);
+        
+        // Log significant timing drift for debugging
+        if (Math.abs(this.timingDrift) > this.maxTimingDrift) {
+            this.sequencer.logger.log(`Timing drift detected: ${this.timingDrift.toFixed(2)}ms`);
         }
 
         // Schedule next pulse check
-        this.timeKeeper.setTimeout(() => this.pulse(), 1);
+        this.timeKeeper.setTimeout(() => this.pulse(), timeUntilNext);
     }
 
     notifyListeners(type, position) {
@@ -266,6 +375,29 @@ class Ticker {
     
     clearAllListeners() {
         this.listeners.clear();
+    }
+
+    // Timing precision monitoring
+    getTimingStats() {
+        return {
+            currentPulse: this.currentPulse,
+            timingDrift: this.timingDrift,
+            maxTimingDrift: this.maxTimingDrift,
+            pulseInterval: this.pulseInterval,
+            scheduledEventsCount: this.scheduledEvents.length,
+            isRunning: this.isRunning,
+            bpm: this.bpm
+        };
+    }
+
+    // Performance monitoring
+    getPerformanceStats() {
+        return {
+            positionCacheSize: this.positionCache.size,
+            sortedEventCacheSize: this.sortedEventCache.size,
+            eventCounter: this.eventCounter,
+            lastSortedPulse: this.lastSortedPulse
+        };
     }
 }
 

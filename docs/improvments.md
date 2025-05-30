@@ -68,8 +68,8 @@ Based on analysis of the execution flow from play button press to MIDI output, t
 - [x] **Incomplete initialization checking**: Sequencer may start before all components are ready.
 
 ### Ticker.pulse() → Event Planning Flow  
-- [ ] **Timing precision loss**: Multiple layers of timing abstraction reduce precision.
-- [ ] **Event ordering issues**: Events scheduled for the same time may execute in undefined order.
+- [x] **Timing precision loss**: Multiple layers of timing abstraction reduce precision.
+- [x] **Event ordering issues**: Events scheduled for the same time may execute in undefined order.
 
 ### TrackPlan → TrackNotes Flow
 - [ ] **Note overlap handling**: Overlapping notes on the same track/channel not properly managed.
