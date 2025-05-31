@@ -26,6 +26,21 @@ class SequenceScheduler {
         this.scheduleEvent(nextBar, 0, callback, data);
     }
 
+    scheduleNextBeat(callback, data = {}) {
+        const currentPosition = this.sequencer.ticker.getPosition();
+        let nextBar = currentPosition.bar;
+        let nextBeat = currentPosition.beat + 1;
+        
+        // Check if we need to wrap to next bar
+        const beatsPerBar = this.sequencer.settings.timeSignature[0];
+        if (nextBeat >= beatsPerBar) {
+            nextBar += 1;
+            nextBeat = 0;
+        }
+        
+        this.scheduleEvent(nextBar, nextBeat, callback, data);
+    }
+
     processEvents() {
         const currentPosition = this.sequencer.ticker.getPosition();
         if (this.lastPositionHandeled === currentPosition.pulse) return;

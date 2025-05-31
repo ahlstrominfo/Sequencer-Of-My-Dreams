@@ -590,6 +590,130 @@ class Sequencer {
         // Fallback to first step if not found (shouldn't happen if calculations are correct)
         return this.settings.song.active ? this.songProgressionSteps[0] : this.regularProgressionSteps[0];
     }
+
+    /**
+     * Update the active state based on user interaction with mute buttons
+     * @param {number} index - The activeState index (0-15) to update or switch to
+     */
+    updateActiveState(index) {
+        // Validate index
+        if (index < 0 || index > 15) {
+            this.logger.log(`Invalid activeState index: ${index}`);
+            return;
+        }
+
+        const currentActiveState = this.settings.currentActiveState;
+        
+        if (index === currentActiveState) {
+            // Clicking on already activated activeState button
+            // Immediately store current track mute/active states
+            this.storeCurrentTrackStates(index);
+            this.logger.log(`Stored current track states to activeState ${index}`);
+        } else {
+            // Clicking on non-activated activeState button
+            // Schedule change for next beat (more responsive than next bar)
+            if (this.isPlaying) {
+                this.scheduler.scheduleNextBeat(() => {
+                    this.switchToActiveState(index);
+                }, {
+                    type: 'activeStateChange',
+                    activeStateIndex: index
+                });
+                this.logger.log(`Scheduled activeState change to ${index} for next beat`);
+            } else {
+                // If not playing, change immediately
+                this.switchToActiveState(index);
+            }
+        }
+    }
+
+    /**
+     * Store the current track active states into the specified activeState
+     * @param {number} activeStateIndex - The activeState index to store to
+     */
+    storeCurrentTrackStates(activeStateIndex) {
+        // Create a new array to store the current track states
+        const currentTrackStates = this.tracks.map(track => track.settings.isActive);
+        
+        // Ensure we have 16 values (pad with true if necessary)
+        while (currentTrackStates.length < 16) {
+            currentTrackStates.push(true);
+        }
+        
+        // Store in the activeStates array
+        this.settings.activeStates[activeStateIndex] = currentTrackStates;
+        
+        // Save to temporary file
+        (async () => {
+            try {
+                await this.sequenceManager.saveToTmp();
+            } catch (error) {
+                console.error('Failed to save to tmp after storing track states:', error);
+            }
+        })();
+    }
+
+    /**
+     * Switch to the specified activeState and apply its track settings
+     * @param {number} activeStateIndex - The activeState index to switch to
+     */
+    switchToActiveState(activeStateIndex) {
+        // Update the current activeState
+        this.settings.currentActiveState = activeStateIndex;
+        
+        // Apply the stored track states
+        this.setActiveState();
+        
+        // Save to temporary file
+        (async () => {
+            try {
+                await this.sequenceManager.saveToTmp();
+            } catch (error) {
+                console.error('Failed to save to tmp after switching active state:', error);
+            }
+        })();
+        
+        this.logger.log(`Switched to activeState ${activeStateIndex}`);
+    }
+
+    /**
+     * Apply the current activeState's track settings to all tracks
+     */
+    setActiveState() {
+        const currentActiveState = this.settings.currentActiveState;
+        const activeStates = this.settings.activeStates[currentActiveState];
+        
+        if (!activeStates) {
+            this.logger.log(`No activeState found for index: ${currentActiveState}`);
+            return;
+        }
+        
+        // Apply the active state to each track
+        this.tracks.forEach((track, index) => {
+            if (index < activeStates.length) {
+                const shouldBeActive = activeStates[index];
+                track.updateSettings({ isActive: shouldBeActive }, false);
+            }
+        });
+        
+        this.logger.log(`Applied activeState ${currentActiveState} to tracks`);
+    }
+
+    /**
+     * Get timing provider information and capabilities
+     * @returns {Object} Timing provider information
+     */
+    getTimingInfo() {
+        return this.realTimeKeeper.getTimingInfo();
+    }
+
+    /**
+     * Check if the current timing provider supports high-precision scheduling
+     * @returns {boolean} True if high-precision timing is available
+     */
+    supportsHighPrecisionTiming() {
+        return this.realTimeKeeper.supportsHighPrecisionTiming();
+    }
 }
 
 module.exports = Sequencer;
