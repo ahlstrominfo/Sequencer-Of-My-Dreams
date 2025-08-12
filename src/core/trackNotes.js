@@ -42,9 +42,7 @@ class TrackNotes {
                 noteDuration = noteSettings.maxDurationFactor * maxDuration;
             }
 
-            if ((this.track.settings.arpMode === ARP_MODES.OFF 
-                && (noteSettings.arpMode === ARP_MODES.USE_TRACK || noteSettings.arpMode === undefined))
-                || noteSettings.arpMode === ARP_MODES.OFF) {
+            if (noteSettings.arpMode === ARP_MODES.OFF) {
                     this.schedueldChord(currentNoteSeriesStep, startPulse, noteDuration);
             } else {
                 this.scheduleArpeggio(currentNoteSeriesStep, startPulse, noteDuration, defaultDuration, maxDuration);
@@ -80,21 +78,15 @@ class TrackNotes {
         const trackSettings = this.track.settings;
         const noteSettings = trackSettings.noteSeries[currentNoteSeriesStep];
 
-        let { wonkyArp, playMultiplier, arpMode } = trackSettings;
-
-        if (noteSettings.arpMode !== ARP_MODES.USE_TRACK) {
-            arpMode = noteSettings.arpMode;
-        }
+        let arpMode = noteSettings.arpMode;
+        let wonkyArp = noteSettings.wonkyArp;
 
         const arpPattern = generateArpeggioPattern(
             noteSettings.numberOfNotes, 
             arpMode
         );
 
-        if (noteSettings.arpMode !== ARP_MODES.OFF 
-            && noteSettings.arpMode !== ARP_MODES.USE_TRACK ) {
-            playMultiplier = noteSettings.playMultiplier;
-        }
+        let playMultiplier = noteSettings.playMultiplier;
 
         let arpStepDuration = Math.floor(defaultDuration / playMultiplier);
         let nrSteps = Math.max(1, (maxDuration / arpStepDuration));
@@ -133,9 +125,7 @@ class TrackNotes {
                 && Math.random() * 100 < noteSettings.probability) 
             {             
                 
-                if (arpMode === ARP_MODES.CHORD 
-                    || (this.track.settings.arpMode === ARP_MODES.CHORD && noteSettings.arpMode === ARP_MODES.USE_TRACK)) 
-                {
+                if (arpMode === ARP_MODES.CHORD) {
                     chord.forEach((pitch) => {
                         if (this.shouldPlayIndividualNote(currentNoteSeriesStep)) {
                             if (this.track.settings.conformNotes) {

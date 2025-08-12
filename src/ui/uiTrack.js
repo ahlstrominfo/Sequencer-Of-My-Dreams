@@ -188,71 +188,11 @@ class UITrack extends UIBase {
         });
 
         this.rows.push({
-            name: 'Use Max Duration',
-            value: () => settings.useMaxDuration ? 'Yes' : 'No',
-            handle: () => {
-                track.updateSettings({
-                    useMaxDuration: !settings.useMaxDuration
-                });
-            },
-            enter: () => {
-                track.updateSettings({
-                    useMaxDuration: !settings.useMaxDuration
-                });
-            }
-        });
-
-        this.rows.push({
-            name: 'Max Duration Factor',
-            value: () => settings.maxDurationFactor,
-            handle: (delta) => {
-                track.updateSettings({
-                    maxDurationFactor: findMultiplierPreset(settings.maxDurationFactor, delta)
-                });
-            }
-        });
-
-        this.rows.push({
-            name: '  ----------------',
-            selectable: false
-        });
-
-        this.rows.push({
             name: 'Play Order',
             value: () => PLAY_ORDER_NAMES[settings.playOrder],
             handle: (delta) => {
                 track.updateSettings({
                     playOrder: settings.playOrder + delta
-                });
-            }
-        });        
-
-        this.rows.push({
-            name: 'Arp Mode',
-            value: () => ARP_MODES_NAMES[settings.arpMode],
-            handle: (delta) => {
-                track.updateSettings({
-                    arpMode: settings.arpMode + delta
-                });
-            }
-        });
-
-        this.rows.push({
-            name: 'Play Multiplier',
-            value: () => settings.playMultiplier,
-            handle: (delta) => {
-                track.updateSettings({
-                    playMultiplier: findMultiplierPreset(settings.playMultiplier, delta)
-                });
-            }
-        });
-
-        this.rows.push({
-            name: 'Wonky Arp',
-            value: () => settings.wonkyArp ? 'Yes' : 'No',
-            enter: () => {
-                track.updateSettings({
-                    wonkyArp: !settings.wonkyArp
                 });
             }
         });

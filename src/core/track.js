@@ -23,7 +23,7 @@ class Track {
                 bValue: 1,
                 aValueIndividualNote: 1,
                 bValueIndividualNote: 1,
-                arpMode: ARP_MODES.USE_TRACK,
+                arpMode: ARP_MODES.OFF,
                 playMultiplier: 1,
                 wonkyArp: false,
                 maxDurationFactor: 1,
@@ -45,12 +45,6 @@ class Track {
             playOrder: PLAY_ORDER.FORWARD,
             probability: 100,
             conformNotes: true,
-            arpMode: ARP_MODES.OFF,
-            wonkyArp: false,
-            playMultiplier: 1,
-            useMaxDuration: false,
-            // : true,
-            maxDurationFactor: 1,
             isActive: true,
             volume: 100,
             tieNoteSeriestoPattern: false,
@@ -124,9 +118,7 @@ class Track {
             newSettings.playOrder = Math.max(0, Math.min(3, newSettings.playOrder));
         }
 
-        if ('arpMode' in newSettings) {
-            newSettings.arpMode = Math.max(0, Math.min(Object.keys(ARP_MODES).length - 1, newSettings.arpMode));
-        }   
+   
 
         if ('resyncInterval' in newSettings) {
             newSettings.resyncInterval = Math.max(0, Math.min(100, newSettings.resyncInterval));
