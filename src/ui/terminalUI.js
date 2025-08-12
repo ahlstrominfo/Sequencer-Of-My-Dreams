@@ -136,7 +136,17 @@ class TerminalUI {
         process.stdin.setRawMode(true);
 
         process.stdin.on('keypress', (key, data) => {
-            if (data.shift && this.currentView === this.views.track) {
+            if (data.ctrl && data.name === 'c') {
+                this.exit();
+            } else if (data.name === 'escape' || (data.meta && data.name === 'b')) {
+                this.handleEscape();
+            } else if (data.name === 'return') {
+                this.handleEnter();
+            } else if (key === 's' && this.currentView === this.views.main) {
+                this.handleStoreActiveState();
+            } else if (key === 'c' && this.currentView === this.views.main) {
+                this.handleClearActiveState();
+            } else if (data.shift && this.currentView === this.views.track) {
                 if (data.name === 'left') {
                     this.currentTrack = (this.currentTrack - 1 + 16) % 16;
                     this.setView('track');
@@ -144,12 +154,6 @@ class TerminalUI {
                     this.currentTrack = (this.currentTrack + 1 + 16) % 16;
                     this.setView('track');
                 }
-            } else if (data.ctrl && data.name === 'c') {
-                this.exit();
-            } else if (data.name === 'escape' || (data.meta && data.name === 'b')) {
-                this.handleEscape();
-            } else if (data.name === 'return') {
-                this.handleEnter();
             } else if (data.name === 'up' || data.name === 'down') {
                 this.handleUpDown(data.name);
             } else if (data.name === 'left' || data.name === 'right') {
@@ -163,6 +167,18 @@ class TerminalUI {
 
     handleEnter() {
         this.currentView.handleEnter();
+    }
+
+    handleStoreActiveState() {
+        if (this.currentView.handleStoreActiveState) {
+            this.currentView.handleStoreActiveState();
+        }
+    }
+
+    handleClearActiveState() {
+        if (this.currentView.handleClearActiveState) {
+            this.currentView.handleClearActiveState();
+        }
     }
 
     handleEscape() {

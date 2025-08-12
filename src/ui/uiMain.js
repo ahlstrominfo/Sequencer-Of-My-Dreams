@@ -28,6 +28,20 @@ class UIMain extends UIBase {
         });
     }
 
+    isActiveStateStored(activeStateData) {
+        // Check if the active state has been modified from the default (all true)
+        const defaultState = Array(16).fill(true);
+        return !this.arraysEqual(activeStateData, defaultState);
+    }
+
+    arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
     getBoxDrawingCharacter(number) {
         // Round to nearest 10
         const roundedNumber = Math.round(number / 10) * 10;
@@ -195,7 +209,18 @@ class UIMain extends UIBase {
             this.createProgressionChangeColumn(),
             ...this.sequencer.settings.activeStates.map((track, index) => ({
                 value: () => {
-                    return index === this.sequencer.settings.currentActiveState ? '■' : '□';
+                    const isCurrent = index === this.sequencer.settings.currentActiveState;
+                    const isStored = this.isActiveStateStored(track);
+                    
+                    if (isCurrent && isStored) {
+                        return '■';  // Current and stored
+                    } else if (isCurrent && !isStored) {
+                        return '▣';  // Current but not stored (outlined square)
+                    } else if (!isCurrent && isStored) {
+                        return '▪';  // Stored but not current (small square)
+                    } else {
+                        return '□';  // Not current and not stored (empty square)
+                    }
                 },
                 enter: () => {
                     this.sequencer.updateActiveState(index);
@@ -212,6 +237,51 @@ class UIMain extends UIBase {
         });
     }
 
+
+    handleStoreActiveState() {
+        // Store current track states to the currently selected active state
+        this.sequencer.logger.log(`S key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
+        if (this.editRow === 4) { // Active states row
+            const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
+            if (activeStateIndex >= 0 && activeStateIndex < 16) {
+                this.sequencer.storeCurrentTrackStates(activeStateIndex);
+                this.sequencer.logger.log(`S key: Stored current track states to active state ${activeStateIndex}`);
+                // Force UI refresh while preserving cursor position
+                const savedRow = this.editRow;
+                const savedCol = this.editCol;
+                this.openView();
+                this.editRow = savedRow;
+                this.editCol = savedCol;
+            } else {
+                this.sequencer.logger.log(`S key: Invalid activeStateIndex ${activeStateIndex}`);
+            }
+        } else {
+            this.sequencer.logger.log(`S key: Not on active states row (row ${this.editRow})`);
+        }
+    }
+
+    handleClearActiveState() {
+        // Clear the selected active state to default (all tracks active)
+        this.sequencer.logger.log(`C key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
+        if (this.editRow === 4) { // Active states row
+            const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
+            if (activeStateIndex >= 0 && activeStateIndex < 16) {
+                // Reset to default state (all tracks active)
+                this.sequencer.settings.activeStates[activeStateIndex] = Array(16).fill(true);
+                this.sequencer.logger.log(`C key: Cleared active state ${activeStateIndex} to default`);
+                // Force UI refresh while preserving cursor position
+                const savedRow = this.editRow;
+                const savedCol = this.editCol;
+                this.openView();
+                this.editRow = savedRow;
+                this.editCol = savedCol;
+            } else {
+                this.sequencer.logger.log(`C key: Invalid activeStateIndex ${activeStateIndex}`);
+            }
+        } else {
+            this.sequencer.logger.log(`C key: Not on active states row (row ${this.editRow})`);
+        }
+    }
 
     createProgressionChangeColumn() {
         this.progressionChangeNumber = null;
