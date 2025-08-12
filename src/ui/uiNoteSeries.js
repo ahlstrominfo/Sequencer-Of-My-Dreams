@@ -106,7 +106,7 @@ class UINoteSeries extends UITableView {
                     value: () => `${series.aValue}:${series.bValue}`,
                     handle: (delta, step) => {
                         if (step === 1) {
-                            series.aValue = series.aValue + delta;
+                            series.aValue = Math.min(series.aValue + delta, series.bValue);
                         } else {
                             series.bValue = series.bValue + delta;
                         }
@@ -121,7 +121,7 @@ class UINoteSeries extends UITableView {
                     value: () => `${series.aValueIndividualNote}:${series.bValueIndividualNote}`,
                     handle: (delta, step) => {
                         if (step === 1) {
-                            series.aValueIndividualNote = series.aValueIndividualNote + delta;
+                            series.aValueIndividualNote = Math.min(series.aValueIndividualNote + delta, series.bValueIndividualNote);
                         } else {
                             series.bValueIndividualNote = series.bValueIndividualNote + delta;
                         }
