@@ -136,15 +136,30 @@ class TerminalUI {
         process.stdin.setRawMode(true);
 
         process.stdin.on('keypress', (key, data) => {
-            if (data.ctrl && data.name === 'c') {
+            // Immediate escape detection - check raw key first for faster response
+            if (key === '\u001b') {
+                this.handleEscape();
+            } else if (data.ctrl && data.name === 'c') {
                 this.exit();
-            } else if (data.name === 'escape' || (data.meta && data.name === 'b')) {
+            } else if (data.name === 'escape') {
                 this.handleEscape();
             } else if (data.name === 'return') {
                 this.handleEnter();
-            } else if (key === 's' && this.currentView === this.views.main) {
-                this.handleStoreActiveState();
+            } else if (key === 'q') {
+                this.handleEscape();
+            } else if (key === 'e') {
+                this.handleEnter();
+            } else if (key === 'w') {
+                this.handleUpDown('up');
+            } else if (key === 's') {
+                this.handleUpDown('down');
+            } else if (key === 'a') {
+                this.handleLeftRight('left');
+            } else if (key === 'd') {
+                this.handleLeftRight('right');
             } else if (key === 'c' && this.currentView === this.views.main) {
+                this.handleStoreActiveState();
+            } else if (key === 'x' && this.currentView === this.views.main) {
                 this.handleClearActiveState();
             } else if (data.shift && this.currentView === this.views.track) {
                 if (data.name === 'left') {

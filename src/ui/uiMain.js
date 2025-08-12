@@ -240,35 +240,12 @@ class UIMain extends UIBase {
 
     handleStoreActiveState() {
         // Store current track states to the currently selected active state
-        this.sequencer.logger.log(`S key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
-        if (this.editRow === 4) { // Active states row
-            const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
-            if (activeStateIndex >= 0 && activeStateIndex < 16) {
-                this.sequencer.storeCurrentTrackStates(activeStateIndex);
-                this.sequencer.logger.log(`S key: Stored current track states to active state ${activeStateIndex}`);
-                // Force UI refresh while preserving cursor position
-                const savedRow = this.editRow;
-                const savedCol = this.editCol;
-                this.openView();
-                this.editRow = savedRow;
-                this.editCol = savedCol;
-            } else {
-                this.sequencer.logger.log(`S key: Invalid activeStateIndex ${activeStateIndex}`);
-            }
-        } else {
-            this.sequencer.logger.log(`S key: Not on active states row (row ${this.editRow})`);
-        }
-    }
-
-    handleClearActiveState() {
-        // Clear the selected active state to default (all tracks active)
         this.sequencer.logger.log(`C key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
         if (this.editRow === 4) { // Active states row
             const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
             if (activeStateIndex >= 0 && activeStateIndex < 16) {
-                // Reset to default state (all tracks active)
-                this.sequencer.settings.activeStates[activeStateIndex] = Array(16).fill(true);
-                this.sequencer.logger.log(`C key: Cleared active state ${activeStateIndex} to default`);
+                this.sequencer.storeCurrentTrackStates(activeStateIndex);
+                this.sequencer.logger.log(`C key: Stored current track states to active state ${activeStateIndex}`);
                 // Force UI refresh while preserving cursor position
                 const savedRow = this.editRow;
                 const savedCol = this.editCol;
@@ -280,6 +257,29 @@ class UIMain extends UIBase {
             }
         } else {
             this.sequencer.logger.log(`C key: Not on active states row (row ${this.editRow})`);
+        }
+    }
+
+    handleClearActiveState() {
+        // Clear the selected active state to default (all tracks active)
+        this.sequencer.logger.log(`X key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
+        if (this.editRow === 4) { // Active states row
+            const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
+            if (activeStateIndex >= 0 && activeStateIndex < 16) {
+                // Reset to default state (all tracks active)
+                this.sequencer.settings.activeStates[activeStateIndex] = Array(16).fill(true);
+                this.sequencer.logger.log(`X key: Cleared active state ${activeStateIndex} to default`);
+                // Force UI refresh while preserving cursor position
+                const savedRow = this.editRow;
+                const savedCol = this.editCol;
+                this.openView();
+                this.editRow = savedRow;
+                this.editCol = savedCol;
+            } else {
+                this.sequencer.logger.log(`X key: Invalid activeStateIndex ${activeStateIndex}`);
+            }
+        } else {
+            this.sequencer.logger.log(`X key: Not on active states row (row ${this.editRow})`);
         }
     }
 
