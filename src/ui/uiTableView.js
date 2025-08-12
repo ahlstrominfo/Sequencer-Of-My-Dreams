@@ -136,6 +136,15 @@ class UITableView extends UIBase {
             super.handleNavigation(direction, step);
         }
     }
+
+    handleTab() {
+        // Cycle to next page
+        this.currentPage = (this.currentPage + 1) % this.nrPages;
+        
+        // Set to first column of the new page
+        const startCol = this.getStartCol();
+        this.editCol = startCol;
+    }
 }
 
 module.exports = UITableView;

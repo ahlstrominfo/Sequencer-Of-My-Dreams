@@ -154,6 +154,8 @@ class TerminalUI {
                 this.handleUpDown(data.name);
             } else if (data.name === 'left' || data.name === 'right') {
                 this.handleLeftRight(data.name);
+            } else if (data.name === 'tab') {
+                this.handleTab();
             }
             this.render();
         });
@@ -175,6 +177,12 @@ class TerminalUI {
     handleLeftRight(direction) {
         const delta = direction === 'right' ? 1 : -1;
         this.currentView.handleLeftRight(delta);
+    }
+
+    handleTab() {
+        if (this.currentView.handleTab) {
+            this.currentView.handleTab();
+        }
     }
 
     print(message) {
