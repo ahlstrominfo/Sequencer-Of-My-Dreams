@@ -75,6 +75,10 @@ function generateChord(rootNote, options = {}) {
 }
 
 function applySpread(chord, spread) {
+    if (chord.length < 2) {
+        return chord;
+    }
+    
     const spreadAmount = Math.abs(spread) / 9;  // Normalize to 0-1
     const direction = Math.sign(spread);
 
