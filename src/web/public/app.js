@@ -255,8 +255,19 @@ class SequencerWebClient {
         const track = this.state.getTrack(this.selectedTrackId);
         const trackId = this.selectedTrackId;
         
+        // Check if editor already exists for this track
+        const existingEditor = this.elements.trackEditor.querySelector('.track-editor-content');
+        const existingTrackId = existingEditor ? parseInt(existingEditor.getAttribute('data-track-id')) : null;
+        
+        if (existingEditor && existingTrackId === trackId) {
+            // Update existing editor values without recreating
+            this.updateExistingTrackEditor(track, trackId);
+            return;
+        }
+        
+        // Create new editor
         this.elements.trackEditor.innerHTML = `
-            <div class="track-editor-content active">
+            <div class="track-editor-content active" data-track-id="${trackId}">
                 <div class="track-editor-header">
                     <div class="track-editor-title">Track ${trackId + 1} Editor</div>
                     <button class="mute-button ${track.isActive ? '' : 'muted'}" 
@@ -324,6 +335,49 @@ class SequencerWebClient {
         `;
         
         // Initialize pattern controls after creating the editor
+        this.updateTrackPatternControls(trackId, track);
+    }
+    
+    updateExistingTrackEditor(track, trackId) {
+        // Update values in the existing editor without recreating the DOM
+        
+        // Update mute button
+        const muteButton = this.elements.trackEditor.querySelector('.mute-button');
+        if (muteButton) {
+            muteButton.className = `mute-button ${track.isActive ? '' : 'muted'}`;
+            muteButton.textContent = track.isActive ? 'MUTE' : 'MUTED';
+            muteButton.setAttribute('onclick', `sequencerClient.updatePath('tracks.${trackId}.isActive', ${!track.isActive})`);
+        }
+        
+        // Update input values only if they don't have focus (to avoid interrupting user input)
+        const inputs = this.elements.trackEditor.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (document.activeElement !== input) {
+                // Update the value based on the input's onchange attribute to determine what it controls
+                const onChangeAttr = input.getAttribute('onchange');
+                if (onChangeAttr) {
+                    if (onChangeAttr.includes('channel')) {
+                        input.value = track.channel;
+                    } else if (onChangeAttr.includes('noteSeries.0.velocity')) {
+                        input.value = track.velocity;
+                    } else if (onChangeAttr.includes('volume')) {
+                        input.value = track.volume;
+                    } else if (onChangeAttr.includes('speedMultiplier')) {
+                        input.value = track.speedMultiplier;
+                    } else if (onChangeAttr.includes('probability')) {
+                        input.value = track.probability || 100;
+                    }
+                }
+            }
+        });
+        
+        // Update pattern type selector (only if not focused)
+        const patternSelect = this.elements.trackEditor.querySelector('select[onchange*="updateTrackPatternType"]');
+        if (patternSelect && document.activeElement !== patternSelect) {
+            patternSelect.value = track.triggerType || 0;
+        }
+        
+        // Always update pattern controls and visualization (these don't cause focus issues)
         this.updateTrackPatternControls(trackId, track);
     }
     
