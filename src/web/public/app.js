@@ -10,6 +10,9 @@ class SequencerWebClient {
             tracks: []
         };
         
+        // Track which patterns are being actively edited to prevent redraws
+        this.activelyEditingPattern = {};
+        
         this.initializeElements();
         this.setupEventListeners();
         this.setupSocketListeners();
@@ -103,7 +106,8 @@ class SequencerWebClient {
                 volume: data.settings?.volume ?? 100,
                 speedMultiplier: data.settings?.speedMultiplier ?? 1,
                 probability: data.settings?.probability ?? 100,
-                triggerType: data.settings?.triggerType ?? 'INIT',
+                triggerType: data.settings?.triggerType ?? 0,
+                triggerSettings: data.settings?.triggerSettings ?? { steps: 16 },
                 hasPattern: !!data.settings
             };
             
@@ -197,6 +201,10 @@ class SequencerWebClient {
             channel: trackId + 1,
             velocity: 100,
             volume: 100,
+            speedMultiplier: 1,
+            probability: 100,
+            triggerType: 0,
+            triggerSettings: { steps: 16 },
             hasPattern: false
         };
         
@@ -236,13 +244,34 @@ class SequencerWebClient {
                 </div>
             </div>
             
+            <div class="track-patterns">
+                <div class="pattern-type-selector">
+                    <label>Pattern Type</label>
+                    <select onchange="sequencerClient.updateTrackPatternType(${trackId}, parseInt(this.value))">
+                        <option value="0" ${track.triggerType === 0 ? 'selected' : ''}>Init</option>
+                        <option value="1" ${track.triggerType === 1 ? 'selected' : ''}>Binary</option>
+                        <option value="2" ${track.triggerType === 2 ? 'selected' : ''}>Euclidean</option>
+                        <option value="3" ${track.triggerType === 3 ? 'selected' : ''}>Step</option>
+                    </select>
+                </div>
+                <div class="pattern-controls" id="pattern-controls-${trackId}">
+                    <!-- Pattern-specific controls will be inserted here -->
+                </div>
+                <div class="pattern-visualization" id="pattern-viz-${trackId}">
+                    <!-- Pattern visualization will be shown here -->
+                </div>
+            </div>
+            
             <div class="track-status">
-                Pattern: ${track.hasPattern ? track.triggerType || 'Set' : 'None'} | 
-                Speed: ${track.speedMultiplier || 1}x
+                Speed: ${track.speedMultiplier || 1}x | 
+                Prob: ${track.probability || 100}%
             </div>
         `;
         
         this.elements.tracksGrid.appendChild(trackElement);
+        
+        // Initialize pattern controls after creating the element
+        this.updateTrackPatternControls(trackId, track);
     }
     
     updateSingleTrackDisplay(trackId) {
@@ -283,8 +312,19 @@ class SequencerWebClient {
             // Update status text
             const statusElement = existingElement.querySelector('.track-status');
             if (statusElement) {
-                statusElement.textContent = `Pattern: ${track.hasPattern ? track.triggerType || 'Set' : 'None'} | Speed: ${track.speedMultiplier || 1}x`;
+                statusElement.textContent = `Speed: ${track.speedMultiplier || 1}x | Prob: ${track.probability || 100}%`;
             }
+            
+            // Update pattern type selector and controls if they exist (but not during active editing)
+            if (!this.activelyEditingPattern[trackId]) {
+                const patternTypeSelect = existingElement.querySelector('select[onchange*="updateTrackPatternType"]');
+                if (patternTypeSelect) {
+                    patternTypeSelect.value = track.triggerType || 0;
+                }
+            }
+            
+            // Update pattern controls if they exist
+            this.updateTrackPatternControls(trackId, track);
         } else {
             // Element doesn't exist, create it at the correct position
             this.insertTrackElementAtPosition(trackId);
@@ -298,6 +338,10 @@ class SequencerWebClient {
             channel: trackId + 1,
             velocity: 100,
             volume: 100,
+            speedMultiplier: 1,
+            probability: 100,
+            triggerType: 0,
+            triggerSettings: { steps: 16 },
             hasPattern: false
         };
         
@@ -337,9 +381,27 @@ class SequencerWebClient {
                 </div>
             </div>
             
+            <div class="track-patterns">
+                <div class="pattern-type-selector">
+                    <label>Pattern Type</label>
+                    <select onchange="sequencerClient.updateTrackPatternType(${trackId}, parseInt(this.value))">
+                        <option value="0" ${track.triggerType === 0 ? 'selected' : ''}>Init</option>
+                        <option value="1" ${track.triggerType === 1 ? 'selected' : ''}>Binary</option>
+                        <option value="2" ${track.triggerType === 2 ? 'selected' : ''}>Euclidean</option>
+                        <option value="3" ${track.triggerType === 3 ? 'selected' : ''}>Step</option>
+                    </select>
+                </div>
+                <div class="pattern-controls" id="pattern-controls-${trackId}">
+                    <!-- Pattern-specific controls will be inserted here -->
+                </div>
+                <div class="pattern-visualization" id="pattern-viz-${trackId}">
+                    <!-- Pattern visualization will be shown here -->
+                </div>
+            </div>
+            
             <div class="track-status">
-                Pattern: ${track.hasPattern ? track.triggerType || 'Set' : 'None'} | 
-                Speed: ${track.speedMultiplier || 1}x
+                Speed: ${track.speedMultiplier || 1}x | 
+                Prob: ${track.probability || 100}%
             </div>
         `;
         
@@ -350,6 +412,9 @@ class SequencerWebClient {
         } else {
             this.elements.tracksGrid.appendChild(trackElement);
         }
+        
+        // Initialize pattern controls after creating the element
+        this.updateTrackPatternControls(trackId, track);
     }
     
     setBPM(bpm) {
@@ -410,6 +475,387 @@ class SequencerWebClient {
                 button.classList.remove('updated');
             }, 500);
         }
+    }
+    
+    updateTrackPatternType(trackId, patternType) {
+        if (trackId >= 0 && trackId < 16) {
+            // Mark this pattern as being actively edited
+            this.activelyEditingPattern[trackId] = true;
+            
+            // Update the track's trigger type
+            const settings = { 
+                triggerType: patternType,
+                triggerSettings: this.getDefaultPatternSettings(patternType)
+            };
+            this.socket.emit('updateTrackSettings', { trackId, settings });
+            
+            // Update the state and controls immediately for responsiveness
+            if (!this.state.tracks[trackId]) {
+                this.state.tracks[trackId] = {};
+            }
+            this.state.tracks[trackId].triggerType = patternType;
+            this.state.tracks[trackId].triggerSettings = this.getDefaultPatternSettings(patternType);
+            
+            // For pattern type changes, we DO want to recreate controls
+            this.activelyEditingPattern[trackId] = false;
+            this.updateTrackPatternControls(trackId, this.state.tracks[trackId]);
+            
+            // Clear the editing flag after a longer delay for pattern type changes
+            setTimeout(() => {
+                this.activelyEditingPattern[trackId] = false;
+            }, 1000);
+        }
+    }
+    
+    getDefaultPatternSettings(patternType) {
+        switch (patternType) {
+            case 0: // Init
+                return { steps: 16 };
+            case 1: // Binary
+                return { numbers: [8], length: 16 };
+            case 2: // Euclidean
+                return { length: 16, hits: 4, shift: 0 };
+            case 3: // Step
+                return { steps: [] };
+            default:
+                return { steps: 16 };
+        }
+    }
+    
+    updateTrackPatternControls(trackId, track) {
+        const controlsElement = document.getElementById(`pattern-controls-${trackId}`);
+        const vizElement = document.getElementById(`pattern-viz-${trackId}`);
+        
+        if (!controlsElement || !vizElement) return;
+        
+        const triggerType = track.triggerType || 0;
+        const triggerSettings = track.triggerSettings || this.getDefaultPatternSettings(triggerType);
+        
+        // Skip updates if this pattern is being actively edited
+        if (this.activelyEditingPattern[trackId]) {
+            // Only update visualization, not controls
+            this.updatePatternVisualization(trackId, triggerType, triggerSettings);
+            return;
+        }
+        
+        // Check if we need to recreate controls (pattern type changed)
+        const currentPatternType = controlsElement.getAttribute('data-pattern-type');
+        const needsRecreate = currentPatternType !== triggerType.toString();
+        
+        if (needsRecreate) {
+            // Clear existing controls and recreate
+            controlsElement.innerHTML = '';
+            controlsElement.setAttribute('data-pattern-type', triggerType.toString());
+            
+            // Create pattern-specific controls
+            switch (triggerType) {
+                case 0: // Init
+                    this.createInitControls(controlsElement, trackId, triggerSettings);
+                    break;
+                case 1: // Binary
+                    this.createBinaryControls(controlsElement, trackId, triggerSettings);
+                    break;
+                case 2: // Euclidean
+                    this.createEuclideanControls(controlsElement, trackId, triggerSettings);
+                    break;
+                case 3: // Step
+                    this.createStepControls(controlsElement, trackId, triggerSettings);
+                    break;
+            }
+        } else {
+            // Update existing controls without recreating
+            this.updateExistingPatternControls(controlsElement, trackId, triggerType, triggerSettings);
+        }
+        
+        // Update visualization
+        this.updatePatternVisualization(trackId, triggerType, triggerSettings);
+    }
+    
+    createInitControls(container, trackId, settings) {
+        container.innerHTML = `
+            <div class="pattern-control">
+                <label>Steps</label>
+                <input type="number" min="1" max="64" value="${settings.steps || 16}" 
+                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'steps', parseInt(this.value))">
+            </div>
+        `;
+    }
+    
+    createBinaryControls(container, trackId, settings) {
+        const numbers = settings.numbers || [8];
+        const length = settings.length || 16;
+        
+        let binaryInputs = '';
+        for (let i = 0; i < Math.min(4, Math.ceil(length / 4)); i++) {
+            binaryInputs += `
+                <input type="number" min="0" max="15" value="${numbers[i] || 0}" 
+                       onchange="sequencerClient.updateBinaryNumber(${trackId}, ${i}, parseInt(this.value))">
+            `;
+        }
+        
+        container.innerHTML = `
+            <div class="pattern-control">
+                <label>Length</label>
+                <input type="number" min="4" max="64" step="4" value="${length}" 
+                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'length', parseInt(this.value))">
+            </div>
+            <div class="pattern-control">
+                <label>Binary Numbers (0-15)</label>
+                <div class="binary-numbers">
+                    ${binaryInputs}
+                </div>
+            </div>
+        `;
+    }
+    
+    createEuclideanControls(container, trackId, settings) {
+        const length = settings.length || 16;
+        const hits = settings.hits || 4;
+        const shift = settings.shift || 0;
+        
+        container.innerHTML = `
+            <div class="pattern-control">
+                <label>Length</label>
+                <input type="number" min="1" max="64" value="${length}" 
+                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'length', parseInt(this.value))">
+            </div>
+            <div class="pattern-control">
+                <label>Hits</label>
+                <input type="number" min="0" max="${length}" value="${hits}" 
+                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'hits', parseInt(this.value))">
+            </div>
+            <div class="pattern-control">
+                <label>Shift</label>
+                <input type="number" min="0" max="${length - 1}" value="${shift}" 
+                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'shift', parseInt(this.value))">
+            </div>
+        `;
+    }
+    
+    createStepControls(container, trackId, settings) {
+        const steps = settings.steps || [];
+        
+        let stepButtons = '';
+        for (let i = 0; i < 16; i++) {
+            const isActive = steps.includes(i);
+            stepButtons += `
+                <div class="step-button ${isActive ? 'active' : ''}" 
+                     onclick="sequencerClient.toggleStepButton(${trackId}, ${i})">
+                    ${i + 1}
+                </div>
+            `;
+        }
+        
+        container.innerHTML = `
+            <div class="pattern-control" style="grid-column: 1 / -1;">
+                <label>Steps (Click to toggle)</label>
+                <div class="step-pattern">
+                    ${stepButtons}
+                </div>
+            </div>
+        `;
+    }
+    
+    updateExistingPatternControls(container, trackId, triggerType, triggerSettings) {
+        // Update existing input values without recreating the controls
+        const inputs = container.querySelectorAll('input');
+        
+        switch (triggerType) {
+            case 0: // Init
+                const stepsInput = inputs[0];
+                if (stepsInput) stepsInput.value = triggerSettings.steps || 16;
+                break;
+                
+            case 1: // Binary
+                const lengthInput = inputs[0];
+                if (lengthInput) lengthInput.value = triggerSettings.length || 16;
+                
+                const numbers = triggerSettings.numbers || [8];
+                for (let i = 1; i < inputs.length && i - 1 < numbers.length; i++) {
+                    inputs[i].value = numbers[i - 1] || 0;
+                }
+                break;
+                
+            case 2: // Euclidean
+                if (inputs[0]) inputs[0].value = triggerSettings.length || 16;
+                if (inputs[1]) inputs[1].value = triggerSettings.hits || 4;
+                if (inputs[2]) inputs[2].value = triggerSettings.shift || 0;
+                break;
+                
+            case 3: // Step
+                // For step patterns, update button states
+                const steps = triggerSettings.steps || [];
+                const stepButtons = container.querySelectorAll('.step-button');
+                stepButtons.forEach((button, index) => {
+                    const isActive = steps.includes(index);
+                    button.className = `step-button ${isActive ? 'active' : ''}`;
+                });
+                break;
+        }
+    }
+    
+    updatePatternSetting(trackId, setting, value) {
+        if (trackId >= 0 && trackId < 16) {
+            const track = this.state.tracks[trackId];
+            if (!track) return;
+            
+            // Mark this pattern as being actively edited
+            this.activelyEditingPattern[trackId] = true;
+            
+            const triggerSettings = { ...track.triggerSettings, [setting]: value };
+            const settings = { triggerSettings };
+            
+            this.socket.emit('updateTrackSettings', { trackId, settings });
+            
+            // Update local state
+            track.triggerSettings = triggerSettings;
+            this.updatePatternVisualization(trackId, track.triggerType, triggerSettings);
+            
+            // Clear the editing flag after a short delay
+            setTimeout(() => {
+                this.activelyEditingPattern[trackId] = false;
+            }, 500);
+        }
+    }
+    
+    updateBinaryNumber(trackId, index, value) {
+        if (trackId >= 0 && trackId < 16) {
+            const track = this.state.tracks[trackId];
+            if (!track) return;
+            
+            // Mark this pattern as being actively edited
+            this.activelyEditingPattern[trackId] = true;
+            
+            const numbers = [...(track.triggerSettings?.numbers || [8])];
+            while (numbers.length <= index) {
+                numbers.push(0);
+            }
+            numbers[index] = Math.max(0, Math.min(15, value));
+            
+            const triggerSettings = { ...track.triggerSettings, numbers };
+            const settings = { triggerSettings };
+            
+            this.socket.emit('updateTrackSettings', { trackId, settings });
+            
+            // Update local state
+            track.triggerSettings = triggerSettings;
+            this.updatePatternVisualization(trackId, track.triggerType, triggerSettings);
+            
+            // Clear the editing flag after a short delay
+            setTimeout(() => {
+                this.activelyEditingPattern[trackId] = false;
+            }, 500);
+        }
+    }
+    
+    toggleStepButton(trackId, step) {
+        if (trackId >= 0 && trackId < 16) {
+            const track = this.state.tracks[trackId];
+            if (!track) return;
+            
+            // Mark this pattern as being actively edited
+            this.activelyEditingPattern[trackId] = true;
+            
+            const steps = [...(track.triggerSettings?.steps || [])];
+            const stepIndex = steps.indexOf(step);
+            
+            if (stepIndex >= 0) {
+                steps.splice(stepIndex, 1);
+            } else {
+                steps.push(step);
+                steps.sort((a, b) => a - b);
+            }
+            
+            const triggerSettings = { ...track.triggerSettings, steps };
+            const settings = { triggerSettings };
+            
+            this.socket.emit('updateTrackSettings', { trackId, settings });
+            
+            // Update local state and UI immediately
+            track.triggerSettings = triggerSettings;
+            
+            // Update the button state immediately
+            const controlsElement = document.getElementById(`pattern-controls-${trackId}`);
+            if (controlsElement) {
+                const stepButton = controlsElement.querySelector(`.step-button:nth-child(${step + 1})`);
+                if (stepButton) {
+                    const isActive = steps.includes(step);
+                    stepButton.className = `step-button ${isActive ? 'active' : ''}`;
+                }
+            }
+            
+            // Update visualization
+            this.updatePatternVisualization(trackId, track.triggerType, triggerSettings);
+            
+            // Clear the editing flag after a short delay
+            setTimeout(() => {
+                this.activelyEditingPattern[trackId] = false;
+            }, 500);
+        }
+    }
+    
+    updatePatternVisualization(trackId, triggerType, triggerSettings) {
+        const vizElement = document.getElementById(`pattern-viz-${trackId}`);
+        if (!vizElement) return;
+        
+        let visualization = '';
+        let beatIndicators = '';
+        
+        switch (triggerType) {
+            case 0: // Init
+                const initLength = triggerSettings.steps || 16;
+                visualization = '□'.repeat(initLength);
+                beatIndicators = Array.from({ length: Math.ceil(initLength / 4) }, (_, i) => (i * 4 + 1).toString().padStart(2)).join('   ');
+                break;
+                
+            case 1: // Binary
+                const numbers = triggerSettings.numbers || [8];
+                const binLength = triggerSettings.length || 16;
+                let binaryPattern = '';
+                for (let i = 0; i < Math.ceil(binLength / 4); i++) {
+                    const num = numbers[i] || 0;
+                    const binary = num.toString(2).padStart(4, '0');
+                    binaryPattern += binary.split('').map(bit => bit === '1' ? '■' : '□').join('');
+                }
+                visualization = binaryPattern.substring(0, binLength);
+                beatIndicators = Array.from({ length: Math.ceil(binLength / 4) }, (_, i) => (i * 4 + 1).toString().padStart(2)).join('   ');
+                break;
+                
+            case 2: // Euclidean
+                const eucLength = triggerSettings.length || 16;
+                const hits = triggerSettings.hits || 4;
+                const shift = triggerSettings.shift || 0;
+                
+                // Generate Euclidean pattern
+                const pattern = new Array(eucLength).fill('□');
+                for (let i = 0; i < hits; i++) {
+                    const pos = Math.floor(i * eucLength / hits);
+                    pattern[pos] = '■';
+                }
+                
+                // Apply shift
+                const shiftedPattern = [...pattern.slice(shift), ...pattern.slice(0, shift)];
+                visualization = shiftedPattern.join('');
+                beatIndicators = Array.from({ length: Math.ceil(eucLength / 4) }, (_, i) => (i * 4 + 1).toString().padStart(2)).join('   ');
+                break;
+                
+            case 3: // Step
+                const steps = triggerSettings.steps || [];
+                const stepPattern = new Array(16).fill('□');
+                steps.forEach(step => {
+                    if (step >= 0 && step < 16) {
+                        stepPattern[step] = '■';
+                    }
+                });
+                visualization = stepPattern.join('');
+                beatIndicators = Array.from({ length: 4 }, (_, i) => (i * 4 + 1).toString().padStart(2)).join('   ');
+                break;
+        }
+        
+        vizElement.innerHTML = `
+            <div class="beat-indicator">${beatIndicators}</div>
+            <div>${visualization}</div>
+        `;
     }
 }
 

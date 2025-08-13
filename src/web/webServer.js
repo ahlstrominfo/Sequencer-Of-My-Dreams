@@ -181,7 +181,8 @@ class WebServer {
                     volume: settings?.volume ?? 100,
                     speedMultiplier: settings?.speedMultiplier ?? 1,
                     probability: settings?.probability ?? 100,
-                    triggerType: settings?.triggerType ?? 'INIT',
+                    triggerType: settings?.triggerType ?? 0,
+                    triggerSettings: settings?.triggerSettings ?? { steps: 16 },
                     hasPattern: !!settings
                 };
             })
