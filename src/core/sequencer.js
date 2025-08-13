@@ -5,9 +5,11 @@ const { Track } = require('./track');
 const { SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
 const Ticker = require('./ticker');
+const EventEmitter = require('events');
 
-class Sequencer {
+class Sequencer extends EventEmitter {
     constructor(bpm = 120, ppq = 96, realTimeKeeper) {
+        super();
         this.settings = {
             bpm: bpm,
             ppq: ppq,
@@ -128,6 +130,7 @@ class Sequencer {
 
             // Set playing state
             this.isPlaying = true;
+            this.emit('playStateChanged', { isPlaying: this.isPlaying });
 
             // Start the schedule loop if not already running
             if (!this.loopIsRunning) {
@@ -176,6 +179,7 @@ class Sequencer {
 
             // Set playing state to false
             this.isPlaying = false;
+            this.emit('playStateChanged', { isPlaying: this.isPlaying });
 
             // Note: loopIsRunning will naturally stop when isPlaying becomes false
             // We don't force-stop it here to avoid race conditions in scheduleLoop
@@ -713,6 +717,20 @@ class Sequencer {
      */
     supportsHighPrecisionTiming() {
         return this.realTimeKeeper.supportsHighPrecisionTiming();
+    }
+
+    setBPM(bpm) {
+        if (typeof bpm === 'number' && bpm >= 60 && bpm <= 200) {
+            this.updateSettings({ bpm: bpm });
+            this.emit('bpmChanged', { bpm: this.settings.bpm });
+        }
+    }
+
+    setActiveState(state) {
+        if (typeof state === 'number' && state >= 0 && state < 16) {
+            this.updateSettings({ currentActiveState: state });
+            this.emit('activeStateChanged', { activeState: this.settings.currentActiveState });
+        }
     }
 }
 
