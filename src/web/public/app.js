@@ -5,7 +5,6 @@ class SequencerWebClient {
         
         // Track selection state
         this.selectedTrackId = null;
-        this.activelyEditingPattern = {};
         
         this.initializeElements();
         this.setupEventListeners();
@@ -37,24 +36,19 @@ class SequencerWebClient {
             const button = document.createElement('div');
             button.className = 'active-state';
             button.textContent = i.toString();
-            button.addEventListener('click', () => this.setActiveState(i));
+            button.addEventListener('click', () => this.updatePath('activeState', i));
             this.elements.activeStates.appendChild(button);
         }
     }
     
     setupEventListeners() {
-        this.elements.playBtn.addEventListener('click', () => this.play());
-        this.elements.stopBtn.addEventListener('click', () => this.stop());
+        this.elements.playBtn.addEventListener('click', () => this.updatePath('isPlaying', true));
+        this.elements.stopBtn.addEventListener('click', () => this.updatePath('isPlaying', false));
         
         this.elements.bpmSlider.addEventListener('input', (e) => {
             const bpm = parseInt(e.target.value);
             this.elements.bpmValue.textContent = bpm;
-            this.setBPM(bpm);
-        });
-        
-        this.elements.bpmSlider.addEventListener('change', (e) => {
-            const bpm = parseInt(e.target.value);
-            this.setBPM(bpm);
+            this.updatePath('bpm', bpm);
         });
     }
     
@@ -69,66 +63,22 @@ class SequencerWebClient {
             this.updateConnectionStatus(false);
         });
         
-        this.socket.on('sequencerState', (state) => {
-            console.log('Received sequencer state:', state);
-            this.state.batch({
-                bpm: state.bpm,
-                isPlaying: state.isPlaying,
-                activeState: state.activeState,
-                activeStates: state.activeStates,
-                timeSignature: state.timeSignature,
-                swing: state.swing,
-                tracks: state.tracks
-            });
+        // Path-based updates
+        this.socket.on('pathUpdate', (data) => {
+            console.log(`Path update: ${data.path} =`, data.value);
+            this.state.set(data.path, data.value);
         });
         
-        this.socket.on('bpmChanged', (data) => {
-            console.log('BPM changed:', data.bpm);
-            this.state.set('bpm', data.bpm);
+        // Full state sync
+        this.socket.on('fullState', (state) => {
+            console.log('Full state sync:', state);
+            this.state.batch(this.flattenToPathsAndValues(state));
         });
         
-        this.socket.on('playStateChanged', (data) => {
-            console.log('Play state changed:', data.isPlaying);
-            this.state.set('isPlaying', data.isPlaying);
-        });
-        
-        this.socket.on('activeStateChanged', (data) => {
-            console.log('Active state changed:', data.activeState);
-            this.state.set('activeState', data.activeState);
-        });
-        
-        this.socket.on('trackUpdated', (data) => {
-            console.log('Track updated:', data);
-            
-            // Skip reactive state updates if this track is being actively edited
-            if (this.activelyEditingPattern[data.trackId]) {
-                console.log(`Skipping trackUpdated for track ${data.trackId} - actively editing`);
-                return;
-            }
-            
-            const trackData = {
-                id: data.trackId,
-                isActive: data.settings?.isActive ?? true,
-                channel: data.settings?.channel ?? (data.trackId + 1),
-                velocity: data.settings?.noteSeries?.[0]?.velocity ?? 100,
-                volume: data.settings?.volume ?? 100,
-                speedMultiplier: data.settings?.speedMultiplier ?? 1,
-                probability: data.settings?.probability ?? 100,
-                triggerType: data.settings?.triggerType ?? 0,
-                triggerSettings: data.settings?.triggerSettings ?? { steps: 16 },
-                hasPattern: !!data.settings
-            };
-            
-            this.state.updateTrack(data.trackId, trackData);
-        });
-        
-        this.socket.on('activeStatesUpdated', (data) => {
-            console.log('Active states updated:', data);
-            this.state.set('activeStates', data.activeStates);
-            
-            // Show visual feedback for the updated active state
+        // Special event handlers
+        this.socket.on('activeStateStored', (data) => {
             this.flashActiveStateButton(data.activeStateIndex);
-            console.log(`Active state ${data.activeStateIndex} updated with current track states`);
+            console.log(`Active state ${data.activeStateIndex} stored`);
         });
         
         this.socket.on('error', (data) => {
@@ -138,15 +88,15 @@ class SequencerWebClient {
     
     setupStateSubscriptions() {
         // Subscribe to global state changes
-        this.state.subscribe('bpm', (bpm) => this.updateBPMDisplay());
-        this.state.subscribe('isPlaying', (isPlaying) => this.updatePlayStateDisplay());
-        this.state.subscribe('activeState', (activeState) => this.updateActiveStateDisplay());
-        this.state.subscribe('timeSignature', (timeSignature) => this.updateTimeSignatureDisplay());
+        this.state.subscribe('bpm', () => this.updateBPMDisplay());
+        this.state.subscribe('isPlaying', () => this.updatePlayStateDisplay());
+        this.state.subscribe('activeState', () => this.updateActiveStateDisplay());
+        this.state.subscribe('timeSignature', () => this.updateTimeSignatureDisplay());
         this.state.subscribe('tracks', () => this.updateTracksOverview());
         
         // Subscribe to individual track changes
         for (let i = 0; i < 16; i++) {
-            this.state.subscribe(`tracks.${i}`, (trackData) => {
+            this.state.subscribe(`tracks.${i}`, () => {
                 this.updateTrackOverview(i);
                 
                 // If this is the selected track, update the editor
@@ -155,6 +105,32 @@ class SequencerWebClient {
                 }
             });
         }
+    }
+    
+    // Path-based update system
+    updatePath(path, value) {
+        console.log(`Sending path update: ${path} =`, value);
+        this.socket.emit('updatePath', { path, value });
+        
+        // Optimistic update
+        this.state.set(path, value);
+    }
+    
+    // Convert nested object to path/value pairs
+    flattenToPathsAndValues(obj, prefix = '') {
+        const result = {};
+        
+        for (const [key, value] of Object.entries(obj)) {
+            const path = prefix ? `${prefix}.${key}` : key;
+            
+            if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+                Object.assign(result, this.flattenToPathsAndValues(value, path));
+            } else {
+                result[path] = value;
+            }
+        }
+        
+        return result;
     }
     
     updateConnectionStatus(connected) {
@@ -233,9 +209,26 @@ class SequencerWebClient {
         const existingElement = document.getElementById(`track-overview-${trackId}`);
         if (existingElement) {
             // Re-create the track overview to ensure it's up to date
+            const track = this.state.getTrack(trackId);
+            const patternViz = this.generatePatternMiniVisualization(track.triggerType, track.triggerSettings);
+            const patternTypeName = this.getPatternTypeName(track.triggerType);
+            
+            // Update classes
+            existingElement.className = `track-overview ${track.isActive ? '' : 'inactive'} ${this.selectedTrackId === trackId ? 'selected' : ''}`;
+            
+            // Update content
+            existingElement.innerHTML = `
+                <div class="track-number">Track ${trackId + 1}</div>
+                <div class="track-info">Ch ${track.channel} | ${patternTypeName}</div>
+                <div class="pattern-mini-viz">${patternViz}</div>
+                <div class="track-status">
+                    ${track.isActive ? 'ACTIVE' : 'MUTED'} | 
+                    V${track.velocity} | 
+                    ${track.speedMultiplier}x
+                </div>
+            `;
+        } else {
             this.createTrackOverview(trackId);
-            const newElement = document.getElementById(`track-overview-${trackId}`);
-            existingElement.parentNode.replaceChild(newElement, existingElement);
         }
     }
     
@@ -267,7 +260,7 @@ class SequencerWebClient {
                 <div class="track-editor-header">
                     <div class="track-editor-title">Track ${trackId + 1} Editor</div>
                     <button class="mute-button ${track.isActive ? '' : 'muted'}" 
-                            onclick="sequencerClient.toggleTrackMute(${trackId})">
+                            onclick="sequencerClient.updatePath('tracks.${trackId}.isActive', ${!track.isActive})">
                         ${track.isActive ? 'MUTE' : 'MUTED'}
                     </button>
                 </div>
@@ -280,27 +273,27 @@ class SequencerWebClient {
                             <div class="setting-group">
                                 <label>MIDI Channel</label>
                                 <input type="number" min="1" max="16" value="${track.channel}" 
-                                       onchange="sequencerClient.updateTrackSetting(${trackId}, 'channel', parseInt(this.value))">
+                                       onchange="sequencerClient.updatePath('tracks.${trackId}.channel', parseInt(this.value))">
                             </div>
                             <div class="setting-group">
                                 <label>Velocity</label>
                                 <input type="number" min="1" max="127" value="${track.velocity}" 
-                                       onchange="sequencerClient.updateTrackVelocity(${trackId}, parseInt(this.value))">
+                                       onchange="sequencerClient.updatePath('tracks.${trackId}.noteSeries.0.velocity', parseInt(this.value))">
                             </div>
                             <div class="setting-group">
                                 <label>Volume</label>
                                 <input type="number" min="0" max="200" value="${track.volume}" 
-                                       onchange="sequencerClient.updateTrackSetting(${trackId}, 'volume', parseInt(this.value))">
+                                       onchange="sequencerClient.updatePath('tracks.${trackId}.volume', parseInt(this.value))">
                             </div>
                             <div class="setting-group">
                                 <label>Speed Multiplier</label>
                                 <input type="number" min="0.25" max="4" step="0.25" value="${track.speedMultiplier}" 
-                                       onchange="sequencerClient.updateTrackSetting(${trackId}, 'speedMultiplier', parseFloat(this.value))">
+                                       onchange="sequencerClient.updatePath('tracks.${trackId}.speedMultiplier', parseFloat(this.value))">
                             </div>
                             <div class="setting-group">
                                 <label>Probability (%)</label>
                                 <input type="number" min="0" max="100" value="${track.probability || 100}" 
-                                       onchange="sequencerClient.updateTrackSetting(${trackId}, 'probability', parseInt(this.value))">
+                                       onchange="sequencerClient.updatePath('tracks.${trackId}.probability', parseInt(this.value))">
                             </div>
                         </div>
                     </div>
@@ -384,54 +377,6 @@ class SequencerWebClient {
         return pattern || '□□□□□□□□';
     }
     
-    setBPM(bpm) {
-        if (bpm >= 60 && bpm <= 200) {
-            this.socket.emit('setBPM', bpm);
-        }
-    }
-    
-    play() {
-        this.socket.emit('play');
-    }
-    
-    stop() {
-        this.socket.emit('stop');
-    }
-    
-    setActiveState(state) {
-        if (state >= 0 && state < 16) {
-            this.socket.emit('setActiveState', state);
-        }
-    }
-    
-    toggleTrackMute(trackId) {
-        const track = this.state.getTrack(trackId);
-        if (track) {
-            const newActiveState = !track.isActive;
-            this.updateTrackSetting(trackId, 'isActive', newActiveState);
-        }
-    }
-    
-    updateTrackSetting(trackId, setting, value) {
-        if (trackId >= 0 && trackId < 16) {
-            const settings = { [setting]: value };
-            this.socket.emit('updateTrackSettings', { trackId, settings });
-        }
-    }
-    
-    updateTrackVelocity(trackId, velocity) {
-        if (trackId >= 0 && trackId < 16 && velocity >= 1 && velocity <= 127) {
-            const track = this.state.getTrack(trackId);
-            const settings = { 
-                noteSeries: [{ 
-                    ...(track.noteSeries?.[0] || {}),
-                    velocity: velocity 
-                }] 
-            };
-            this.socket.emit('updateTrackSettings', { trackId, settings });
-        }
-    }
-    
     flashActiveStateButton(activeStateIndex) {
         const activeStateButtons = this.elements.activeStates.children;
         if (activeStateButtons[activeStateIndex]) {
@@ -448,54 +393,22 @@ class SequencerWebClient {
     updateTrackPatternType(trackId, patternType) {
         if (trackId >= 0 && trackId < 16) {
             const currentTrack = this.state.getTrack(trackId);
-            const currentSettings = currentTrack.triggerSettings || {};
             
-            // Only use defaults for completely new pattern types, preserve existing values where possible
-            let newSettings;
-            if (patternType === currentTrack.triggerType) {
-                // Same pattern type, keep all current settings
-                newSettings = currentSettings;
-            } else {
-                // Different pattern type, migrate compatible settings and add defaults for missing ones
-                newSettings = this.migratePatternSettings(currentSettings, patternType);
-            }
+            // Update pattern type
+            this.updatePath(`tracks.${trackId}.triggerType`, patternType);
             
-            const settings = { 
-                triggerType: patternType,
-                triggerSettings: newSettings
-            };
-            this.socket.emit('updateTrackSettings', { trackId, settings });
+            // Reset trigger settings to defaults for new pattern type
+            const defaultSettings = this.getDefaultPatternSettings(patternType);
+            this.updatePath(`tracks.${trackId}.triggerSettings`, defaultSettings);
             
             // Update the editor immediately if this is the selected track
             if (this.selectedTrackId === trackId) {
-                const tempTrack = {
-                    ...currentTrack,
-                    triggerType: patternType,
-                    triggerSettings: newSettings
-                };
-                this.updateTrackPatternControls(trackId, tempTrack);
+                setTimeout(() => {
+                    const updatedTrack = this.state.getTrack(trackId);
+                    this.updateTrackPatternControls(trackId, updatedTrack);
+                }, 100);
             }
         }
-    }
-    
-    migratePatternSettings(currentSettings, newPatternType) {
-        // Preserve compatible settings and add defaults for missing ones
-        const defaults = this.getDefaultPatternSettings(newPatternType);
-        
-        // Start with defaults and overlay existing compatible settings
-        const newSettings = { ...defaults };
-        
-        // Preserve length if it exists (compatible across Binary and Euclidean)
-        if (currentSettings.length && (newPatternType === 1 || newPatternType === 2)) {
-            newSettings.length = currentSettings.length;
-        }
-        
-        // Preserve steps array for Init and Step patterns
-        if (currentSettings.steps && (newPatternType === 0 || newPatternType === 3)) {
-            newSettings.steps = currentSettings.steps;
-        }
-        
-        return newSettings;
     }
     
     getDefaultPatternSettings(patternType) {
@@ -522,42 +435,23 @@ class SequencerWebClient {
         const triggerType = track.triggerType || 0;
         const triggerSettings = track.triggerSettings || this.getDefaultPatternSettings(triggerType);
         
-        // Skip updates if this pattern is being actively edited
-        if (this.activelyEditingPattern[trackId]) {
-            // Only update visualization, not controls
-            this.updatePatternVisualization(trackId, triggerType, triggerSettings);
-            return;
-        }
+        // Always recreate controls for simplicity with path-based system
+        controlsElement.innerHTML = '';
         
-        // Check if we need to recreate controls (pattern type changed)
-        const currentPatternType = controlsElement.getAttribute('data-pattern-type');
-        const needsRecreate = currentPatternType !== triggerType.toString();
-        
-        if (needsRecreate) {
-            // Clear existing controls and recreate
-            controlsElement.innerHTML = '';
-            controlsElement.setAttribute('data-pattern-type', triggerType.toString());
-            
-            // Create pattern-specific controls
-            switch (triggerType) {
-                case 0: // Init
-                    this.createInitControls(controlsElement, trackId, triggerSettings);
-                    break;
-                case 1: // Binary
-                    this.createBinaryControls(controlsElement, trackId, triggerSettings);
-                    break;
-                case 2: // Euclidean
-                    this.createEuclideanControls(controlsElement, trackId, triggerSettings);
-                    break;
-                case 3: // Step
-                    this.createStepControls(controlsElement, trackId, triggerSettings);
-                    break;
-            }
-        } else {
-            // Only update existing controls if not actively editing to prevent value resets
-            if (!this.activelyEditingPattern[trackId]) {
-                this.updateExistingPatternControls(controlsElement, trackId, triggerType, triggerSettings);
-            }
+        // Create pattern-specific controls
+        switch (triggerType) {
+            case 0: // Init
+                this.createInitControls(controlsElement, trackId, triggerSettings);
+                break;
+            case 1: // Binary
+                this.createBinaryControls(controlsElement, trackId, triggerSettings);
+                break;
+            case 2: // Euclidean
+                this.createEuclideanControls(controlsElement, trackId, triggerSettings);
+                break;
+            case 3: // Step
+                this.createStepControls(controlsElement, trackId, triggerSettings);
+                break;
         }
         
         // Update visualization
@@ -569,7 +463,7 @@ class SequencerWebClient {
             <div class="pattern-control">
                 <label>Steps</label>
                 <input type="number" min="1" max="64" value="${settings.steps || 16}" 
-                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'steps', parseInt(this.value))">
+                       onchange="sequencerClient.updatePath('tracks.${trackId}.triggerSettings.steps', parseInt(this.value))">
             </div>
         `;
     }
@@ -582,7 +476,7 @@ class SequencerWebClient {
         for (let i = 0; i < Math.min(4, Math.ceil(length / 4)); i++) {
             binaryInputs += `
                 <input type="number" min="0" max="15" value="${numbers[i] || 0}" 
-                       onchange="sequencerClient.updateBinaryNumber(${trackId}, ${i}, parseInt(this.value))">
+                       onchange="sequencerClient.updatePath('tracks.${trackId}.triggerSettings.numbers.${i}', parseInt(this.value))">
             `;
         }
         
@@ -590,7 +484,7 @@ class SequencerWebClient {
             <div class="pattern-control">
                 <label>Length</label>
                 <input type="number" min="4" max="64" step="4" value="${length}" 
-                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'length', parseInt(this.value))">
+                       onchange="sequencerClient.updatePath('tracks.${trackId}.triggerSettings.length', parseInt(this.value))">
             </div>
             <div class="pattern-control">
                 <label>Binary Numbers (0-15)</label>
@@ -610,17 +504,17 @@ class SequencerWebClient {
             <div class="pattern-control">
                 <label>Length</label>
                 <input type="number" min="1" max="64" value="${length}" 
-                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'length', parseInt(this.value))">
+                       onchange="sequencerClient.updatePath('tracks.${trackId}.triggerSettings.length', parseInt(this.value))">
             </div>
             <div class="pattern-control">
                 <label>Hits</label>
                 <input type="number" min="0" max="${length}" value="${hits}" 
-                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'hits', parseInt(this.value))">
+                       onchange="sequencerClient.updatePath('tracks.${trackId}.triggerSettings.hits', parseInt(this.value))">
             </div>
             <div class="pattern-control">
                 <label>Shift</label>
                 <input type="number" min="0" max="${length - 1}" value="${shift}" 
-                       onchange="sequencerClient.updatePatternSetting(${trackId}, 'shift', parseInt(this.value))">
+                       onchange="sequencerClient.updatePath('tracks.${trackId}.triggerSettings.shift', parseInt(this.value))">
             </div>
         `;
     }
@@ -649,105 +543,10 @@ class SequencerWebClient {
         `;
     }
     
-    updateExistingPatternControls(container, trackId, triggerType, triggerSettings) {
-        // Update existing input values without recreating the controls
-        const inputs = container.querySelectorAll('input');
-        
-        switch (triggerType) {
-            case 0: // Init
-                const stepsInput = inputs[0];
-                if (stepsInput) stepsInput.value = triggerSettings.steps || 16;
-                break;
-                
-            case 1: // Binary
-                const lengthInput = inputs[0];
-                if (lengthInput) lengthInput.value = triggerSettings.length || 16;
-                
-                const numbers = triggerSettings.numbers || [8];
-                for (let i = 1; i < inputs.length && i - 1 < numbers.length; i++) {
-                    inputs[i].value = numbers[i - 1] || 0;
-                }
-                break;
-                
-            case 2: // Euclidean
-                if (inputs[0]) inputs[0].value = triggerSettings.length || 16;
-                if (inputs[1]) inputs[1].value = triggerSettings.hits || 4;
-                if (inputs[2]) inputs[2].value = triggerSettings.shift || 0;
-                break;
-                
-            case 3: // Step
-                // For step patterns, update button states
-                const steps = triggerSettings.steps || [];
-                const stepButtons = container.querySelectorAll('.step-button');
-                stepButtons.forEach((button, index) => {
-                    const isActive = steps.includes(index);
-                    button.className = `step-button ${isActive ? 'active' : ''}`;
-                });
-                break;
-        }
-    }
-    
-    updatePatternSetting(trackId, setting, value) {
-        if (trackId >= 0 && trackId < 16) {
-            const track = this.state.getTrack(trackId);
-            if (!track) return;
-            
-            // Mark this pattern as being actively edited
-            this.activelyEditingPattern[trackId] = true;
-            
-            const triggerSettings = { ...track.triggerSettings, [setting]: value };
-            const settings = { triggerSettings };
-            
-            this.socket.emit('updateTrackSettings', { trackId, settings });
-            
-            // Don't update reactive state during active editing - just update visualization
-            this.updatePatternVisualization(trackId, track.triggerType, triggerSettings);
-            
-            // Clear the editing flag after a longer delay to allow for multiple rapid changes
-            clearTimeout(this.activelyEditingPattern[trackId + '_timeout']);
-            this.activelyEditingPattern[trackId + '_timeout'] = setTimeout(() => {
-                this.activelyEditingPattern[trackId] = false;
-            }, 1000);
-        }
-    }
-    
-    updateBinaryNumber(trackId, index, value) {
-        if (trackId >= 0 && trackId < 16) {
-            const track = this.state.getTrack(trackId);
-            if (!track) return;
-            
-            // Mark this pattern as being actively edited
-            this.activelyEditingPattern[trackId] = true;
-            
-            const numbers = [...(track.triggerSettings?.numbers || [8])];
-            while (numbers.length <= index) {
-                numbers.push(0);
-            }
-            numbers[index] = Math.max(0, Math.min(15, value));
-            
-            const triggerSettings = { ...track.triggerSettings, numbers };
-            const settings = { triggerSettings };
-            
-            this.socket.emit('updateTrackSettings', { trackId, settings });
-            
-            // Don't update reactive state during active editing - just update visualization
-            this.updatePatternVisualization(trackId, track.triggerType, triggerSettings);
-            
-            // Clear the editing flag after a longer delay to allow for multiple rapid changes
-            clearTimeout(this.activelyEditingPattern[trackId + '_timeout']);
-            this.activelyEditingPattern[trackId + '_timeout'] = setTimeout(() => {
-                this.activelyEditingPattern[trackId] = false;
-            }, 1000);
-        }
-    }
-    
     toggleStepButton(trackId, step) {
         if (trackId >= 0 && trackId < 16) {
             const track = this.state.getTrack(trackId);
             if (!track) return;
-            
-            // Mark this pattern as being actively edited
-            this.activelyEditingPattern[trackId] = true;
             
             const steps = [...(track.triggerSettings?.steps || [])];
             const stepIndex = steps.indexOf(step);
@@ -759,29 +558,17 @@ class SequencerWebClient {
                 steps.sort((a, b) => a - b);
             }
             
-            const triggerSettings = { ...track.triggerSettings, steps };
-            const settings = { triggerSettings };
+            this.updatePath(`tracks.${trackId}.triggerSettings.steps`, steps);
             
-            this.socket.emit('updateTrackSettings', { trackId, settings });
-            
-            // Update the button state immediately (don't use reactive state during editing)
+            // Update button state immediately
             const controlsElement = document.getElementById(`pattern-controls-${trackId}`);
             if (controlsElement) {
-                const stepButton = controlsElement.querySelector(`.step-button:nth-child(${step + 1})`);
+                const stepButton = controlsElement.querySelector(`[onclick*="toggleStepButton(${trackId}, ${step})"]`);
                 if (stepButton) {
                     const isActive = steps.includes(step);
                     stepButton.className = `step-button ${isActive ? 'active' : ''}`;
                 }
             }
-            
-            // Update visualization
-            this.updatePatternVisualization(trackId, track.triggerType, triggerSettings);
-            
-            // Clear the editing flag after a longer delay to allow for multiple rapid changes
-            clearTimeout(this.activelyEditingPattern[trackId + '_timeout']);
-            this.activelyEditingPattern[trackId + '_timeout'] = setTimeout(() => {
-                this.activelyEditingPattern[trackId] = false;
-            }, 1000);
         }
     }
     

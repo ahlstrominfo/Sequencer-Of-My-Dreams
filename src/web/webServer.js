@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const ValidationUtils = require('../utils/validation');
 
 class WebServer {
     constructor(sequencer, port = 3000) {
@@ -28,71 +29,14 @@ class WebServer {
             res.json(this.getSequencerState());
         });
 
-        this.app.post('/api/sequencer/bpm', (req, res) => {
-            const { bpm } = req.body;
-            if (bpm >= 60 && bpm <= 200) {
-                this.sequencer.setBPM(bpm);
-                res.json({ success: true, bpm: this.sequencer.settings.bpm });
-            } else {
-                res.status(400).json({ error: 'BPM must be between 60 and 200' });
-            }
-        });
-
-        this.app.post('/api/sequencer/play', (req, res) => {
-            this.sequencer.start();
-            res.json({ success: true, isPlaying: this.sequencer.isPlaying });
-        });
-
-        this.app.post('/api/sequencer/stop', (req, res) => {
-            this.sequencer.stop();
-            res.json({ success: true, isPlaying: this.sequencer.isPlaying });
-        });
-
-        this.app.post('/api/sequencer/activeState', (req, res) => {
-            const { state } = req.body;
-            if (state >= 0 && state < 16) {
-                this.sequencer.switchToActiveState(state);
-                res.json({ success: true, activeState: this.sequencer.settings.currentActiveState });
-            } else {
-                res.status(400).json({ error: 'Active state must be between 0 and 15' });
-            }
-        });
-
-        this.app.post('/api/track/:trackId/settings', (req, res) => {
-            const trackId = parseInt(req.params.trackId);
-            const settings = req.body;
-            
-            if (trackId >= 0 && trackId < 16) {
-                try {
-                    this.sequencer.updateTrackSettings(trackId, settings);
-                    res.json({ success: true, trackId: trackId, settings: settings });
-                } catch (error) {
-                    res.status(400).json({ error: error.message });
-                }
-            } else {
-                res.status(400).json({ error: 'Track ID must be between 0 and 15' });
-            }
-        });
-
-        this.app.get('/api/track/:trackId', (req, res) => {
-            const trackId = parseInt(req.params.trackId);
-            if (trackId >= 0 && trackId < 16 && this.sequencer.tracks[trackId]) {
-                res.json({ 
-                    trackId: trackId,
-                    settings: this.sequencer.tracks[trackId].getSettings()
-                });
-            } else {
-                res.status(404).json({ error: 'Track not found' });
-            }
-        });
-
-        this.app.post('/api/sequencer/storeActiveState', (req, res) => {
-            const { activeStateIndex } = req.body;
-            if (activeStateIndex >= 0 && activeStateIndex < 16) {
-                this.sequencer.storeCurrentTrackStates(activeStateIndex);
-                res.json({ success: true, activeStateIndex: activeStateIndex });
-            } else {
-                res.status(400).json({ error: 'Active state index must be between 0 and 15' });
+        // Path-based REST API endpoint
+        this.app.post('/api/updatePath', (req, res) => {
+            const { path, value } = req.body;
+            try {
+                this.handlePathUpdate(path, value);
+                res.json({ success: true, path, value });
+            } catch (error) {
+                res.status(400).json({ error: error.message, path });
             }
         });
     }
@@ -101,38 +45,33 @@ class WebServer {
         this.io.on('connection', (socket) => {
             console.log('Web client connected:', socket.id);
             
-            socket.emit('sequencerState', this.getSequencerState());
+            // Send full state on connection
+            socket.emit('fullState', this.getSequencerState());
 
-            socket.on('setBPM', (bpm) => {
-                if (bpm >= 60 && bpm <= 200) {
-                    this.sequencer.setBPM(bpm);
+            // Handle path-based updates
+            socket.on('updatePath', (data) => {
+                try {
+                    this.handlePathUpdate(data.path, data.value);
+                } catch (error) {
+                    socket.emit('error', { message: error.message, path: data.path });
                 }
+            });
+
+            // Legacy support for existing commands
+            socket.on('setBPM', (bpm) => {
+                this.handlePathUpdate('bpm', bpm);
             });
 
             socket.on('play', () => {
-                this.sequencer.start();
+                this.handlePathUpdate('isPlaying', true);
             });
 
             socket.on('stop', () => {
-                this.sequencer.stop();
+                this.handlePathUpdate('isPlaying', false);
             });
 
             socket.on('setActiveState', (state) => {
-                if (state >= 0 && state < 16) {
-                    this.sequencer.switchToActiveState(state);
-                }
-            });
-
-            socket.on('updateTrackSettings', (data) => {
-                const { trackId, settings } = data;
-                if (trackId >= 0 && trackId < 16) {
-                    try {
-                        this.sequencer.updateTrackSettings(trackId, settings);
-                        this.io.emit('trackUpdated', { trackId, settings });
-                    } catch (error) {
-                        socket.emit('error', { message: error.message, trackId });
-                    }
-                }
+                this.handlePathUpdate('activeState', state);
             });
 
             socket.on('disconnect', () => {
@@ -142,25 +81,180 @@ class WebServer {
     }
 
     setupSequencerListeners() {
+        // Listen for sequencer events and broadcast as path updates
         this.sequencer.on('bpmChanged', (data) => {
-            this.broadcastUpdate('bpmChanged', data);
+            this.broadcastPathUpdate('bpm', data.bpm);
         });
 
         this.sequencer.on('playStateChanged', (data) => {
-            this.broadcastUpdate('playStateChanged', data);
+            this.broadcastPathUpdate('isPlaying', data.isPlaying);
         });
 
         this.sequencer.on('activeStateChanged', (data) => {
-            this.broadcastUpdate('activeStateChanged', data);
+            this.broadcastPathUpdate('activeState', data.activeState);
         });
 
         this.sequencer.on('trackUpdated', (data) => {
-            this.broadcastUpdate('trackUpdated', data);
+            // Convert track update to path updates
+            this.broadcastTrackUpdate(data.trackId, data.settings);
         });
 
         this.sequencer.on('activeStatesUpdated', (data) => {
-            this.broadcastUpdate('activeStatesUpdated', data);
+            this.broadcastPathUpdate('activeStates', data.activeStates);
+            // Also broadcast the specific update event for UI feedback
+            this.io.emit('activeStateStored', { activeStateIndex: data.activeStateIndex });
         });
+    }
+
+    handlePathUpdate(path, value) {
+        const pathParts = path.split('.');
+        console.log(`Path update: ${path} = ${JSON.stringify(value)}`);
+        
+        try {
+            // Route to appropriate handler based on path
+            if (path === 'bpm') {
+                const validatedBPM = ValidationUtils.validateBPM(value);
+                this.sequencer.setBPM(validatedBPM);
+            } else if (path === 'isPlaying') {
+                if (value) {
+                    this.sequencer.start();
+                } else {
+                    this.sequencer.stop();
+                }
+            } else if (path === 'activeState') {
+                const validatedState = ValidationUtils.validateActiveState(value);
+                this.sequencer.switchToActiveState(validatedState);
+            } else if (path.startsWith('tracks.')) {
+                this.handleTrackPathUpdate(pathParts, value);
+            } else {
+                throw new Error(`Unknown path: ${path}`);
+            }
+            
+            // Broadcast the change to all clients
+            this.broadcastPathUpdate(path, value);
+            
+        } catch (error) {
+            console.error(`Error updating path ${path}:`, error.message);
+            throw error;
+        }
+    }
+
+    handleTrackPathUpdate(pathParts, value) {
+        const trackId = parseInt(pathParts[1]);
+        
+        if (isNaN(trackId) || trackId < 0 || trackId >= 16) {
+            throw new Error(`Invalid track ID: ${pathParts[1]}`);
+        }
+        
+        // Get current track for context-aware validation
+        const currentTrack = this.sequencer.tracks[trackId];
+        const currentSettings = currentTrack ? currentTrack.getSettings() : {};
+        
+        // Reconstruct full path for validation
+        const fullPath = pathParts.join('.');
+        
+        // Validate the value using shared validation
+        const validatedValue = ValidationUtils.validateByPath(fullPath, value, currentSettings);
+        
+        // Convert path update to settings object that track.updateSettings() expects
+        const settings = this.convertPathToSettings(pathParts.slice(2), validatedValue);
+        
+        console.log(`Updating track ${trackId} with settings:`, JSON.stringify(settings));
+        
+        // Use sequencer's existing updateTrackSettings method
+        this.sequencer.updateTrackSettings(trackId, settings);
+    }
+
+    convertPathToSettings(pathParts, value) {
+        // Convert a path like ['triggerSettings', 'length'] to {triggerSettings: {length: value}}
+        const settings = {};
+        let current = settings;
+        
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            const key = pathParts[i];
+            
+            // Handle array indices for nested properties
+            if (!isNaN(parseInt(key))) {
+                // This is an array index, skip for now as it needs special handling
+                continue;
+            }
+            
+            current[key] = {};
+            current = current[key];
+        }
+        
+        const finalKey = pathParts[pathParts.length - 1];
+        const parentPath = pathParts[pathParts.length - 2];
+        
+        // Handle special cases for arrays
+        if (pathParts.includes('numbers') && !isNaN(parseInt(finalKey))) {
+            // Handle triggerSettings.numbers.index updates
+            const index = parseInt(finalKey);
+            if (!settings.triggerSettings) settings.triggerSettings = {};
+            if (!settings.triggerSettings.numbers) settings.triggerSettings.numbers = [];
+            settings.triggerSettings.numbers[index] = value;
+        } else if (pathParts.includes('steps') && Array.isArray(value)) {
+            // Handle full steps array updates
+            if (!settings.triggerSettings) settings.triggerSettings = {};
+            settings.triggerSettings.steps = value;
+        } else if (pathParts.includes('noteSeries') && !isNaN(parseInt(pathParts[1]))) {
+            // Handle noteSeries.index.property updates
+            const seriesIndex = parseInt(pathParts[1]);
+            const property = pathParts[2];
+            if (!settings.noteSeries) settings.noteSeries = [];
+            if (!settings.noteSeries[seriesIndex]) settings.noteSeries[seriesIndex] = {};
+            settings.noteSeries[seriesIndex][property] = value;
+        } else {
+            // Handle simple property updates
+            current[finalKey] = value;
+        }
+        
+        return settings;
+    }
+
+
+    broadcastPathUpdate(path, value) {
+        this.io.emit('pathUpdate', { path, value });
+    }
+
+    broadcastTrackUpdate(trackId, settings) {
+        // Convert track settings to path updates for the frontend
+        const paths = this.flattenTrackSettings(trackId, settings);
+        for (const [path, value] of Object.entries(paths)) {
+            this.broadcastPathUpdate(path, value);
+        }
+    }
+
+    flattenTrackSettings(trackId, settings) {
+        const paths = {};
+        
+        for (const [key, value] of Object.entries(settings)) {
+            if (key === 'triggerSettings' && typeof value === 'object') {
+                for (const [subKey, subValue] of Object.entries(value)) {
+                    if (Array.isArray(subValue)) {
+                        paths[`tracks.${trackId}.${key}.${subKey}`] = subValue;
+                        subValue.forEach((item, index) => {
+                            paths[`tracks.${trackId}.${key}.${subKey}.${index}`] = item;
+                        });
+                    } else {
+                        paths[`tracks.${trackId}.${key}.${subKey}`] = subValue;
+                    }
+                }
+            } else if (key === 'noteSeries' && Array.isArray(value)) {
+                paths[`tracks.${trackId}.${key}`] = value;
+                value.forEach((series, seriesIndex) => {
+                    if (typeof series === 'object') {
+                        for (const [prop, propValue] of Object.entries(series)) {
+                            paths[`tracks.${trackId}.${key}.${seriesIndex}.${prop}`] = propValue;
+                        }
+                    }
+                });
+            } else {
+                paths[`tracks.${trackId}.${key}`] = value;
+            }
+        }
+        
+        return paths;
     }
 
     getSequencerState() {
@@ -172,25 +266,74 @@ class WebServer {
             timeSignature: this.sequencer.settings.timeSignature,
             swing: this.sequencer.settings.swing,
             tracks: this.sequencer.tracks.map((track, index) => {
-                const settings = track ? track.getSettings() : null;
+                if (!track) {
+                    return {
+                        id: index,
+                        isActive: true,
+                        channel: index + 1,
+                        velocity: 100,
+                        volume: 100,
+                        speedMultiplier: 1,
+                        probability: 100,
+                        triggerType: 0,
+                        triggerSettings: { steps: 16 },
+                        noteSeries: [{
+                            rootNote: 60,
+                            numberOfNotes: 1,
+                            velocity: 100,
+                            inversion: 0,
+                            pitchSpan: 0,
+                            velocitySpan: 0,
+                            probability: 100,
+                            aValue: 1,
+                            bValue: 1,
+                            aValueIndividualNote: 1,
+                            bValueIndividualNote: 1,
+                            arpMode: 0,
+                            spread: 0,
+                            maxDurationFactor: 1,
+                            useMaxDuration: false,
+                            playMultiplier: 1,
+                            wonkyArp: false
+                        }],
+                        hasPattern: false
+                    };
+                }
+                
+                const settings = track.getSettings();
                 return {
                     id: index,
-                    isActive: settings?.isActive ?? true,
-                    channel: settings?.channel ?? (index + 1),
-                    velocity: settings?.noteSeries?.[0]?.velocity ?? 100,
-                    volume: settings?.volume ?? 100,
-                    speedMultiplier: settings?.speedMultiplier ?? 1,
-                    probability: settings?.probability ?? 100,
-                    triggerType: settings?.triggerType ?? 0,
-                    triggerSettings: settings?.triggerSettings ?? { steps: 16 },
+                    isActive: settings.isActive ?? true,
+                    channel: settings.channel ?? (index + 1),
+                    velocity: settings.noteSeries?.[0]?.velocity ?? 100,
+                    volume: settings.volume ?? 100,
+                    speedMultiplier: settings.speedMultiplier ?? 1,
+                    probability: settings.probability ?? 100,
+                    triggerType: settings.triggerType ?? 0,
+                    triggerSettings: settings.triggerSettings ?? { steps: 16 },
+                    noteSeries: settings.noteSeries ?? [{
+                        rootNote: 60,
+                        numberOfNotes: 1,
+                        velocity: 100,
+                        inversion: 0,
+                        pitchSpan: 0,
+                        velocitySpan: 0,
+                        probability: 100,
+                        aValue: 1,
+                        bValue: 1,
+                        aValueIndividualNote: 1,
+                        bValueIndividualNote: 1,
+                        arpMode: 0,
+                        spread: 0,
+                        maxDurationFactor: 1,
+                        useMaxDuration: false,
+                        playMultiplier: 1,
+                        wonkyArp: false
+                    }],
                     hasPattern: !!settings
                 };
             })
         };
-    }
-
-    broadcastUpdate(event, data) {
-        this.io.emit(event, data);
     }
 
     start() {

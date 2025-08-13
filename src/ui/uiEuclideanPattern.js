@@ -1,5 +1,6 @@
 const UIBase = require("./uiBase");
 const { EuclideanTriggerPattern } = require('../patterns/triggerPatterns');
+const ValidationUtils = require('../utils/validation');
 
 class UIEuclideanPattern extends UIBase {
     constructor(terminalUI, sequencer) {
@@ -16,7 +17,8 @@ class UIEuclideanPattern extends UIBase {
                 name: 'Length',
                 value: () => settings.triggerSettings.length,
                 handle: (delta, step) => {
-                    settings.triggerSettings.length = Math.max(1, Math.min(100, settings.triggerSettings.length + delta * step));
+                    const newLength = settings.triggerSettings.length + delta * step;
+                    settings.triggerSettings.length = ValidationUtils.validatePatternLength(newLength);
                     track.updateSettings({
                         triggerSettings: settings.triggerSettings
                     });
@@ -26,7 +28,8 @@ class UIEuclideanPattern extends UIBase {
                 name: 'Hits',
                 value: () => settings.triggerSettings.hits,
                 handle: (delta) => {
-                    settings.triggerSettings.hits = Math.max(0, Math.min(settings.triggerSettings.length, settings.triggerSettings.hits + delta));
+                    const newHits = settings.triggerSettings.hits + delta;
+                    settings.triggerSettings.hits = ValidationUtils.validateEuclideanHits(newHits, settings.triggerSettings.length);
                     track.updateSettings({
                         triggerSettings: settings.triggerSettings
                     });
@@ -36,7 +39,8 @@ class UIEuclideanPattern extends UIBase {
                 name: 'Shift',
                 value: () => settings.triggerSettings.shift,
                 handle: (delta) => {
-                    settings.triggerSettings.shift = Math.max(0, Math.min(settings.triggerSettings.length - 1, settings.triggerSettings.shift + delta));
+                    const newShift = settings.triggerSettings.shift + delta;
+                    settings.triggerSettings.shift = ValidationUtils.validateEuclideanShift(newShift, settings.triggerSettings.length);
                     track.updateSettings({
                         triggerSettings: settings.triggerSettings
                     });
