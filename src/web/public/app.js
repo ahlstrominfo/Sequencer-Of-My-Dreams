@@ -5,6 +5,7 @@ class SequencerWebClient {
             bpm: 120,
             isPlaying: false,
             activeState: 0,
+            activeStates: [],
             timeSignature: [4, 4],
             tracks: []
         };
@@ -91,6 +92,45 @@ class SequencerWebClient {
             this.state.activeState = data.activeState;
             this.updateActiveStateDisplay();
         });
+        
+        this.socket.on('trackUpdated', (data) => {
+            console.log('Track updated:', data);
+            const trackData = {
+                id: data.trackId,
+                isActive: data.settings?.isActive ?? true,
+                channel: data.settings?.channel ?? (data.trackId + 1),
+                velocity: data.settings?.noteSeries?.[0]?.velocity ?? 100,
+                volume: data.settings?.volume ?? 100,
+                speedMultiplier: data.settings?.speedMultiplier ?? 1,
+                probability: data.settings?.probability ?? 100,
+                triggerType: data.settings?.triggerType ?? 'INIT',
+                hasPattern: !!data.settings
+            };
+            
+            // Ensure tracks array exists and has enough elements
+            if (!this.state.tracks) {
+                this.state.tracks = [];
+            }
+            while (this.state.tracks.length <= data.trackId) {
+                this.state.tracks.push({});
+            }
+            
+            Object.assign(this.state.tracks[data.trackId], trackData);
+            this.updateSingleTrackDisplay(data.trackId);
+        });
+        
+        this.socket.on('activeStatesUpdated', (data) => {
+            console.log('Active states updated:', data);
+            this.state.activeStates = data.activeStates;
+            
+            // Show visual feedback for the updated active state
+            this.flashActiveStateButton(data.activeStateIndex);
+            console.log(`Active state ${data.activeStateIndex} updated with current track states`);
+        });
+        
+        this.socket.on('error', (data) => {
+            console.error('Socket error:', data);
+        });
     }
     
     updateConnectionStatus(connected) {
@@ -146,17 +186,168 @@ class SequencerWebClient {
         this.elements.tracksGrid.innerHTML = '';
         
         for (let i = 0; i < 16; i++) {
-            const track = this.state.tracks[i] || { id: i, active: false };
-            const trackElement = document.createElement('div');
-            trackElement.className = `track ${track.active ? 'active' : ''}`;
+            this.createTrackElement(i);
+        }
+    }
+    
+    createTrackElement(trackId) {
+        const track = this.state.tracks[trackId] || { 
+            id: trackId, 
+            isActive: true,
+            channel: trackId + 1,
+            velocity: 100,
+            volume: 100,
+            hasPattern: false
+        };
+        
+        const trackElement = document.createElement('div');
+        trackElement.className = `track ${track.isActive ? 'active' : 'inactive'}`;
+        trackElement.id = `track-${trackId}`;
+        
+        trackElement.innerHTML = `
+            <div class="track-header">
+                <div class="track-number">Track ${trackId + 1}</div>
+                <button class="mute-button ${track.isActive ? '' : 'muted'}" 
+                        onclick="sequencerClient.toggleTrackMute(${trackId})">
+                    ${track.isActive ? 'MUTE' : 'MUTED'}
+                </button>
+            </div>
             
-            trackElement.innerHTML = `
-                <div class="track-number">Track ${i + 1}</div>
-                <div>Ch: ${track.midiChannel || i + 1}</div>
-                <div>Vel: ${track.velocity || 100}</div>
-                <div>Status: ${track.active ? 'Active' : 'Inactive'}</div>
-            `;
+            <div class="track-controls">
+                <div class="track-control">
+                    <label>MIDI Ch</label>
+                    <input type="number" min="1" max="16" value="${track.channel}" 
+                           onchange="sequencerClient.updateTrackSetting(${trackId}, 'channel', parseInt(this.value))">
+                </div>
+                <div class="track-control">
+                    <label>Velocity</label>
+                    <input type="number" min="1" max="127" value="${track.velocity}" 
+                           onchange="sequencerClient.updateTrackVelocity(${trackId}, parseInt(this.value))">
+                </div>
+                <div class="track-control">
+                    <label>Volume</label>
+                    <input type="number" min="0" max="100" value="${track.volume}" 
+                           onchange="sequencerClient.updateTrackSetting(${trackId}, 'volume', parseInt(this.value))">
+                </div>
+                <div class="track-control">
+                    <label>Probability</label>
+                    <input type="number" min="0" max="100" value="${track.probability || 100}" 
+                           onchange="sequencerClient.updateTrackSetting(${trackId}, 'probability', parseInt(this.value))">
+                </div>
+            </div>
             
+            <div class="track-status">
+                Pattern: ${track.hasPattern ? track.triggerType || 'Set' : 'None'} | 
+                Speed: ${track.speedMultiplier || 1}x
+            </div>
+        `;
+        
+        this.elements.tracksGrid.appendChild(trackElement);
+    }
+    
+    updateSingleTrackDisplay(trackId) {
+        const existingElement = document.getElementById(`track-${trackId}`);
+        if (existingElement) {
+            const track = this.state.tracks[trackId] || { 
+                id: trackId, 
+                isActive: true,
+                channel: trackId + 1,
+                velocity: 100,
+                volume: 100,
+                hasPattern: false
+            };
+            
+            // Update existing element instead of recreating
+            existingElement.className = `track ${track.isActive ? 'active' : 'inactive'}`;
+            
+            // Update mute button
+            const muteButton = existingElement.querySelector('.mute-button');
+            if (muteButton) {
+                muteButton.className = `mute-button ${track.isActive ? '' : 'muted'}`;
+                muteButton.textContent = track.isActive ? 'MUTE' : 'MUTED';
+            }
+            
+            // Update input values
+            const channelInput = existingElement.querySelector('input[onchange*="channel"]');
+            if (channelInput) channelInput.value = track.channel;
+            
+            const velocityInput = existingElement.querySelector('input[onchange*="Velocity"]');
+            if (velocityInput) velocityInput.value = track.velocity;
+            
+            const volumeInput = existingElement.querySelector('input[onchange*="volume"]');
+            if (volumeInput) volumeInput.value = track.volume;
+            
+            const probabilityInput = existingElement.querySelector('input[onchange*="probability"]');
+            if (probabilityInput) probabilityInput.value = track.probability || 100;
+            
+            // Update status text
+            const statusElement = existingElement.querySelector('.track-status');
+            if (statusElement) {
+                statusElement.textContent = `Pattern: ${track.hasPattern ? track.triggerType || 'Set' : 'None'} | Speed: ${track.speedMultiplier || 1}x`;
+            }
+        } else {
+            // Element doesn't exist, create it at the correct position
+            this.insertTrackElementAtPosition(trackId);
+        }
+    }
+    
+    insertTrackElementAtPosition(trackId) {
+        const track = this.state.tracks[trackId] || { 
+            id: trackId, 
+            isActive: true,
+            channel: trackId + 1,
+            velocity: 100,
+            volume: 100,
+            hasPattern: false
+        };
+        
+        const trackElement = document.createElement('div');
+        trackElement.className = `track ${track.isActive ? 'active' : 'inactive'}`;
+        trackElement.id = `track-${trackId}`;
+        
+        trackElement.innerHTML = `
+            <div class="track-header">
+                <div class="track-number">Track ${trackId + 1}</div>
+                <button class="mute-button ${track.isActive ? '' : 'muted'}" 
+                        onclick="sequencerClient.toggleTrackMute(${trackId})">
+                    ${track.isActive ? 'MUTE' : 'MUTED'}
+                </button>
+            </div>
+            
+            <div class="track-controls">
+                <div class="track-control">
+                    <label>MIDI Ch</label>
+                    <input type="number" min="1" max="16" value="${track.channel}" 
+                           onchange="sequencerClient.updateTrackSetting(${trackId}, 'channel', parseInt(this.value))">
+                </div>
+                <div class="track-control">
+                    <label>Velocity</label>
+                    <input type="number" min="1" max="127" value="${track.velocity}" 
+                           onchange="sequencerClient.updateTrackVelocity(${trackId}, parseInt(this.value))">
+                </div>
+                <div class="track-control">
+                    <label>Volume</label>
+                    <input type="number" min="0" max="100" value="${track.volume}" 
+                           onchange="sequencerClient.updateTrackSetting(${trackId}, 'volume', parseInt(this.value))">
+                </div>
+                <div class="track-control">
+                    <label>Probability</label>
+                    <input type="number" min="0" max="100" value="${track.probability || 100}" 
+                           onchange="sequencerClient.updateTrackSetting(${trackId}, 'probability', parseInt(this.value))">
+                </div>
+            </div>
+            
+            <div class="track-status">
+                Pattern: ${track.hasPattern ? track.triggerType || 'Set' : 'None'} | 
+                Speed: ${track.speedMultiplier || 1}x
+            </div>
+        `;
+        
+        // Insert at the correct position
+        const nextTrackElement = document.getElementById(`track-${trackId + 1}`);
+        if (nextTrackElement) {
+            this.elements.tracksGrid.insertBefore(trackElement, nextTrackElement);
+        } else {
             this.elements.tracksGrid.appendChild(trackElement);
         }
     }
@@ -178,6 +369,46 @@ class SequencerWebClient {
     setActiveState(state) {
         if (state >= 0 && state < 16) {
             this.socket.emit('setActiveState', state);
+        }
+    }
+    
+    toggleTrackMute(trackId) {
+        const track = this.state.tracks[trackId];
+        if (track) {
+            const newActiveState = !track.isActive;
+            this.updateTrackSetting(trackId, 'isActive', newActiveState);
+        }
+    }
+    
+    updateTrackSetting(trackId, setting, value) {
+        if (trackId >= 0 && trackId < 16) {
+            const settings = { [setting]: value };
+            this.socket.emit('updateTrackSettings', { trackId, settings });
+        }
+    }
+    
+    updateTrackVelocity(trackId, velocity) {
+        if (trackId >= 0 && trackId < 16 && velocity >= 1 && velocity <= 127) {
+            const settings = { 
+                noteSeries: [{ 
+                    ...this.state.tracks[trackId]?.noteSeries?.[0],
+                    velocity: velocity 
+                }] 
+            };
+            this.socket.emit('updateTrackSettings', { trackId, settings });
+        }
+    }
+    
+    flashActiveStateButton(activeStateIndex) {
+        const activeStateButtons = this.elements.activeStates.children;
+        if (activeStateButtons[activeStateIndex]) {
+            const button = activeStateButtons[activeStateIndex];
+            button.classList.add('updated');
+            
+            // Remove the flash class after animation completes
+            setTimeout(() => {
+                button.classList.remove('updated');
+            }, 500);
         }
     }
 }

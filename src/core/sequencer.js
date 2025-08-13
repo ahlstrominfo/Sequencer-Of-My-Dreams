@@ -332,12 +332,18 @@ class Sequencer extends EventEmitter {
 
         Object.assign(this.settings, newSettings);
 
+        // Emit events for web interface sync
+        if ('bpm' in newSettings) {
+            this.emit('bpmChanged', { bpm: this.settings.bpm });
+        }
+
         if (oldActiveState !== this.settings.currentActiveState) {
             if (this.isPlaying && this.settings.song.active === false) {
                 this.loadActiveStates = true;
             } else {
                 this.setActiveState();
             }
+            this.emit('activeStateChanged', { activeState: this.settings.currentActiveState });
         }
 
         if ('progressions' in newSettings || 'currentProgressionIndex' in newSettings) {
@@ -606,28 +612,19 @@ class Sequencer extends EventEmitter {
             return;
         }
 
-        const currentActiveState = this.settings.currentActiveState;
-        
-        if (index === currentActiveState) {
-            // Clicking on already activated activeState button
-            // Immediately store current track mute/active states
-            this.storeCurrentTrackStates(index);
-            this.logger.log(`Stored current track states to activeState ${index}`);
-        } else {
-            // Clicking on non-activated activeState button
-            // Schedule change for next beat (more responsive than next bar)
-            if (this.isPlaying) {
-                this.scheduler.scheduleNextBeat(() => {
-                    this.switchToActiveState(index);
-                }, {
-                    type: 'activeStateChange',
-                    activeStateIndex: index
-                });
-                this.logger.log(`Scheduled activeState change to ${index} for next beat`);
-            } else {
-                // If not playing, change immediately
+        // Always switch to the requested active state
+        // Storage is now only done via "c" key, not by clicking on same state
+        if (this.isPlaying) {
+            this.scheduler.scheduleNextBeat(() => {
                 this.switchToActiveState(index);
-            }
+            }, {
+                type: 'activeStateChange',
+                activeStateIndex: index
+            });
+            this.logger.log(`Scheduled activeState change to ${index} for next beat`);
+        } else {
+            // If not playing, change immediately
+            this.switchToActiveState(index);
         }
     }
 
@@ -636,16 +633,27 @@ class Sequencer extends EventEmitter {
      * @param {number} activeStateIndex - The activeState index to store to
      */
     storeCurrentTrackStates(activeStateIndex) {
-        // Create a new array to store the current track states
-        const currentTrackStates = this.tracks.map(track => track.settings.isActive);
+        // Create a new array to store the current track states for all 16 tracks
+        const currentTrackStates = [];
         
-        // Ensure we have 16 values (pad with true if necessary)
-        while (currentTrackStates.length < 16) {
-            currentTrackStates.push(true);
+        for (let i = 0; i < 16; i++) {
+            if (this.tracks[i] && this.tracks[i].settings) {
+                // Use actual track's isActive state
+                currentTrackStates[i] = this.tracks[i].settings.isActive;
+            } else {
+                // Default to true for non-existent tracks
+                currentTrackStates[i] = true;
+            }
         }
         
         // Store in the activeStates array
         this.settings.activeStates[activeStateIndex] = currentTrackStates;
+        
+        // Emit event for web interface sync
+        this.emit('activeStatesUpdated', { 
+            activeStateIndex: activeStateIndex, 
+            activeStates: this.settings.activeStates 
+        });
         
         // Save to temporary file
         (async () => {
@@ -687,18 +695,32 @@ class Sequencer extends EventEmitter {
         const currentActiveState = this.settings.currentActiveState;
         const activeStates = this.settings.activeStates[currentActiveState];
         
+        console.log(`DEBUG setActiveState: Loading activeState ${currentActiveState}`);
+        console.log(`DEBUG setActiveState: activeStates =`, activeStates);
+        
         if (!activeStates) {
+            console.log(`DEBUG: No activeState found for index: ${currentActiveState}`);
             this.logger.log(`No activeState found for index: ${currentActiveState}`);
             return;
         }
         
-        // Apply the active state to each track
-        this.tracks.forEach((track, index) => {
-            if (index < activeStates.length) {
-                const shouldBeActive = activeStates[index];
-                track.updateSettings({ isActive: shouldBeActive }, false);
+        // Apply the active state to all 16 tracks
+        for (let i = 0; i < 16; i++) {
+            if (i < activeStates.length) {
+                const shouldBeActive = activeStates[i];
+                
+                // Ensure track exists before applying state
+                if (!this.tracks[i]) {
+                    // Create track with default settings if it doesn't exist
+                    const { Track } = require('./track');
+                    this.tracks[i] = new Track({}, this, i);
+                    console.log(`DEBUG: Created new track ${i}`);
+                }
+                
+                console.log(`DEBUG: Setting track ${i} from ${this.tracks[i].settings.isActive} to ${shouldBeActive}`);
+                this.tracks[i].updateSettings({ isActive: shouldBeActive }, false);
             }
-        });
+        }
         
         this.logger.log(`Applied activeState ${currentActiveState} to tracks`);
     }
@@ -726,7 +748,7 @@ class Sequencer extends EventEmitter {
         }
     }
 
-    setActiveState(state) {
+    setActiveStateIndex(state) {
         if (typeof state === 'number' && state >= 0 && state < 16) {
             this.updateSettings({ currentActiveState: state });
             this.emit('activeStateChanged', { activeState: this.settings.currentActiveState });

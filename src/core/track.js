@@ -133,6 +133,12 @@ class Track {
 
         shouldSaveToTmp && this.sequencer.sequenceManager.saveToTmp();
         this.sequencer.notifyListeners('trackSettingsUpdated', this.trackId);
+        
+        // Emit track update event for web interface
+        this.sequencer.emit('trackUpdated', { 
+            trackId: this.trackId, 
+            settings: this.getSettings() 
+        });
     }
 
     getSettings() {
