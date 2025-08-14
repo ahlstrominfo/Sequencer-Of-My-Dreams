@@ -186,6 +186,15 @@ class TrackNotes {
                         channel: channel,
                     }
                 );
+                
+                // Emit note event for web interface
+                this.track.sequencer.emit('noteOn', {
+                    trackId: this.track.trackId,
+                    note: note,
+                    velocity: velocity,
+                    channel: channel
+                });
+                
                 // Remove from tracking once processed
                 this.scheduledNoteEvents.delete(`${startPulse}-${note}-${channel}-on`);
             },
@@ -201,6 +210,14 @@ class TrackNotes {
                         channel: channel,
                     }
                 );
+                
+                // Emit note off event for web interface
+                this.track.sequencer.emit('noteOff', {
+                    trackId: this.track.trackId,
+                    note: note,
+                    channel: channel
+                });
+                
                 // Remove from tracking once processed
                 this.scheduledNoteEvents.delete(`${endPulse}-${note}-${channel}-off`);
             },

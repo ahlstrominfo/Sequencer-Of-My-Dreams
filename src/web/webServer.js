@@ -104,6 +104,33 @@ class WebServer {
             // Also broadcast the specific update event for UI feedback
             this.io.emit('activeStateStored', { activeStateIndex: data.activeStateIndex });
         });
+
+        // Listen for note events from the sequencer
+        this.sequencer.on('noteOn', (data) => {
+            this.io.emit('noteOn', {
+                trackId: data.trackId,
+                note: data.note,
+                velocity: data.velocity,
+                channel: data.channel
+            });
+        });
+
+        this.sequencer.on('noteOff', (data) => {
+            this.io.emit('noteOff', {
+                trackId: data.trackId,
+                note: data.note,
+                channel: data.channel
+            });
+        });
+
+        // Listen for track-specific pattern step updates
+        this.sequencer.on('trackPatternStep', (data) => {
+            this.io.emit('trackPatternStep', {
+                trackId: data.trackId,
+                currentStep: data.currentStep,
+                patternLength: data.patternLength
+            });
+        });
     }
 
     handlePathUpdate(path, value) {

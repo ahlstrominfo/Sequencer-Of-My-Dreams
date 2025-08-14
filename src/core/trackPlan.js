@@ -156,6 +156,13 @@ class TrackPlan {
         if (this.currentTriggerStep >= this.triggerPattern.length) {
             this.currentTriggerStep = 0;
         }
+        
+        // Emit track-specific pattern position update for web interface
+        this.sequencer.emit('trackPatternStep', {
+            trackId: this.track.trackId,
+            currentStep: this.currentTriggerStep,
+            patternLength: this.triggerPattern.length
+        });
     }
 
     shouldTriggerEventAtPulse(pulse, pulsesPerEvent) {

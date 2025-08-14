@@ -59,6 +59,8 @@ class Sequencer extends EventEmitter {
                 this.loadActiveStates = false;
             }
         });
+        
+        
         this.ticker.registerListener('pulse', (position) => {
             if (position.currentPulse === 0) {
                 this.midi.sendStart();
