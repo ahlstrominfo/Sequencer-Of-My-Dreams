@@ -7,6 +7,7 @@ class TrackPlan {
         this.trackNotes = new TrackNotes(track);
         this.sequencer = sequencer;
         this.currentTriggerStep = 0;
+        this.currentVisualStep = 0; // Sequential step for UI visualization
         this.registeredListeners = {};
         this.cachedDurations = [];
         
@@ -84,6 +85,7 @@ class TrackPlan {
             this.triggerSteps = this.triggerPattern.triggerSteps;
             this.durations = this.triggerPattern.durations;
             this.currentTriggerStep = this.currentTriggerStep >= this.triggerPattern.length ? 0 : this.currentTriggerStep;
+            this.currentVisualStep = 0; // Reset visual step when pattern changes
             this._patternCacheKey = newCacheKey;
         }
         
@@ -100,7 +102,9 @@ class TrackPlan {
 
         this.registeredListeners.reset = this.sequencer.ticker.registerListener('reset', () => {
             this.currentTriggerStep = 0;
+            this.currentVisualStep = 0;
         });
+
     }
 
     teardownTickerListeners() {
@@ -122,6 +126,10 @@ class TrackPlan {
         
         for (let pulse = planStartPulse; pulse < planEndPulse; pulse++) {
             if (this.shouldTriggerEventAtPulse(pulse, pulsesPerEvent)) {
+                // Always advance visual step on each timing event (for UI display)
+                this.updateCurrentVisualStep();
+                
+                // Handle trigger logic
                 if (this.hasTriggerStepAt()) {
                     if (this.track.settings.isActive) {
                         this.trackNotes.scheduleNotes({
@@ -133,6 +141,8 @@ class TrackPlan {
                         });
                     }
                 }
+                
+                // Advance trigger step (this determines which pattern position we're checking)
                 this.updateCurrentTriggerStep();
             }
         }
@@ -155,6 +165,13 @@ class TrackPlan {
         this.currentTriggerStep = (this.currentTriggerStep + 1);
         if (this.currentTriggerStep >= this.triggerPattern.length) {
             this.currentTriggerStep = 0;
+        }
+    }
+
+    updateCurrentVisualStep() {
+        this.currentVisualStep = (this.currentVisualStep + 1);
+        if (this.currentVisualStep >= this.triggerPattern.length) {
+            this.currentVisualStep = 0;
         }
     }
 

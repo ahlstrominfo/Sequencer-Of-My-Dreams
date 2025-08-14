@@ -1,6 +1,7 @@
 const BPMCalculator = require("../utils/bpmCalculator");
 const UIBase = require("./uiBase");
 const { TRIGGER_TYPES } = require("../patterns/triggerPatterns");
+const colors = require("../utils/colors");
 
 class UIMain extends UIBase {
     constructor(terminalUI, sequencer) {
@@ -106,6 +107,11 @@ class UIMain extends UIBase {
             }
         }
         
+        // If resync interval is set and shorter than pattern, limit visualization to that length
+        if (settings.resyncInterval && settings.resyncInterval > 0 && settings.resyncInterval < vizLength) {
+            vizLength = settings.resyncInterval;
+        }
+        
         const visualization = track.trackPlan.triggerPattern.getVisualization(vizLength);
         
         // If no maxDisplayLength specified, use a reasonable maximum based on terminal width
@@ -114,11 +120,41 @@ class UIMain extends UIBase {
         }
         
         // Truncate if it exceeds the display length
+        let displayPattern = visualization;
         if (visualization.length > maxDisplayLength) {
-            return visualization.substring(0, maxDisplayLength);
+            displayPattern = visualization.substring(0, maxDisplayLength);
         }
         
-        return visualization;
+        // Calculate current step position based on sequencer timing
+        let currentStep = 0;
+        if (this.sequencer.isPlaying && track.trackPlan.triggerPattern) {
+            const position = this.sequencer.ticker.getPosition();
+            const speedMultiplier = track.settings.speedMultiplier;
+            const pulsesPerEvent = this.sequencer.ticker.getPulsesForSpeedMultiplier(speedMultiplier);
+            
+            let pulsesToUse = position.currentPulse;
+            
+            // If resync interval is set, calculate position within the resync cycle
+            if (settings.resyncInterval && settings.resyncInterval > 0) {
+                const pulsesPerSixteenth = this.sequencer.ticker.pulsesPerSixteenth;
+                const pulsesPerResyncCycle = settings.resyncInterval * pulsesPerSixteenth;
+                pulsesToUse = position.currentPulse % pulsesPerResyncCycle;
+            }
+            
+            // Calculate which step we're currently on
+            currentStep = Math.floor(pulsesToUse / pulsesPerEvent) % vizLength;
+        }
+
+        // Apply colors: dim gray for all steps, bright white for current step
+        const coloredPattern = displayPattern.split('').map((char, index) => {
+            if (index === currentStep && index < displayPattern.length) {
+                return colors.brightWhite(char);
+            } else {
+                return colors.dimGray(char);
+            }
+        }).join('');
+        
+        return coloredPattern;
     }
 
     rowRender({formattedValue}) {
@@ -213,10 +249,6 @@ class UIMain extends UIBase {
                             this.terminalUI.currentTrack = index;
                             this.terminalUI.setView('track');
                         }
-                    },
-                    {
-                        value: () => this.trackPlaying[track.trackId] ? '■' : '□',
-                        selectable: false
                     },
                     {
                         value: () => track.settings.isActive ? '■' : '□',
