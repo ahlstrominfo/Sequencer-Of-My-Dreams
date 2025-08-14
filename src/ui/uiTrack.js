@@ -36,9 +36,9 @@ class UITrack extends UIBase {
                 value: () => {
                     const triggerSettings = settings.triggerSettings;
                     const pattern = new EuclideanTriggerPattern(triggerSettings.length, triggerSettings.hits, triggerSettings.shift);
-                    const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    // Use cached visualization
-                    return pattern.getVisualization(triggerLength);
+                    // Use pattern length setting if > 0, otherwise use the euclidean length (all)
+                    const vizLength = triggerSettings.patternLength > 0 ? triggerSettings.patternLength : triggerSettings.length;
+                    return pattern.getVisualization(vizLength);
                 },
                 enter: () => {
                     this.terminalUI.setView('euclideanPattern');
@@ -51,9 +51,10 @@ class UITrack extends UIBase {
                 name: 'Binary Pattern',
                 value: () => {
                     const pattern = BinaryTriggerPattern.fromNumbers(settings.triggerSettings.numbers);
-                    const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    // Use cached visualization
-                    return pattern.getVisualization(triggerLength);
+                    // Use pattern length setting if > 0, otherwise use full binary length (all)
+                    const fullBinaryLength = settings.triggerSettings.numbers.length * 4;
+                    const vizLength = settings.triggerSettings.patternLength > 0 ? settings.triggerSettings.patternLength : fullBinaryLength;
+                    return pattern.getVisualization(vizLength);
                 },
                 enter: () => {
                     this.terminalUI.setView('binaryPattern');
@@ -67,9 +68,9 @@ class UITrack extends UIBase {
                 value: () => {
                     const triggerSettings = settings.triggerSettings;
                     const pattern = new StepTriggerPattern(triggerSettings.steps);
-                    const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
-                    // Use cached visualization
-                    return pattern.getVisualization(triggerLength);
+                    // Use pattern length setting if > 0, otherwise use 16 (all)
+                    const vizLength = triggerSettings.patternLength > 0 ? triggerSettings.patternLength : 16;
+                    return pattern.getVisualization(vizLength);
                 },
                 enter: () => {
                     this.terminalUI.setView('stepPattern');
@@ -77,19 +78,20 @@ class UITrack extends UIBase {
             });
         }
 
-        // Add pattern steps control
+        // Add pattern length control for all pattern types
         this.rows.push({
-            name: 'Pattern Steps',
+            name: 'Pattern Length',
             value: () => {
-                const triggerLength = settings.resyncInterval || settings.triggerSettings.length || 16;
-                return `${triggerLength}`;
+                // Default to 0 (use all), show "all" for 0
+                const patternLength = settings.triggerSettings.patternLength || 0;
+                return patternLength === 0 ? 'all' : patternLength;
             },
             handle: (delta) => {
-                const currentLength = settings.resyncInterval || settings.triggerSettings.length || 16;
-                const newLength = Math.max(1, Math.min(64, currentLength + delta));
+                const maxLength = this.getMaxPatternLength(settings);
+                const currentLength = settings.triggerSettings.patternLength || 0;
+                const newLength = Math.max(0, Math.min(maxLength, currentLength + delta));
                 
-                // Update triggerSettings.length to maintain the base pattern length
-                const newTriggerSettings = { ...settings.triggerSettings, length: newLength };
+                const newTriggerSettings = { ...settings.triggerSettings, patternLength: newLength };
                 track.updateSettings({
                     triggerSettings: newTriggerSettings
                 });
@@ -283,6 +285,32 @@ class UITrack extends UIBase {
         console.log('------------------');
         super.render();
         console.log('------------------');
+    }
+
+    getDefaultPatternLength(settings) {
+        switch (settings.triggerType) {
+            case TRIGGER_TYPES.EUCLIDEAN:
+                return settings.triggerSettings.length;
+            case TRIGGER_TYPES.BINARY:
+                return settings.triggerSettings.numbers.length * 4;
+            case TRIGGER_TYPES.STEP:
+                return 16;
+            default:
+                return settings.triggerSettings.length || 16;
+        }
+    }
+
+    getMaxPatternLength(settings) {
+        switch (settings.triggerType) {
+            case TRIGGER_TYPES.EUCLIDEAN:
+                return settings.triggerSettings.length;
+            case TRIGGER_TYPES.BINARY:
+                return settings.triggerSettings.numbers.length * 4;
+            case TRIGGER_TYPES.STEP:
+                return 16;
+            default:
+                return 64;
+        }
     }
 }
 

@@ -52,6 +52,14 @@ class TriggerPattern {
         return visualization;
     }
 
+    applyPatternLength(patternLength) {
+        if (patternLength && patternLength > 0) {
+            this.pattern = this.pattern.slice(0, patternLength);
+            this._cachedVisualizations.clear(); // Clear cache when pattern changes
+            this.precalculateDurations();
+        }
+    }
+
     applyResyncInterval(resyncInterval) {
         if (resyncInterval && resyncInterval > 0 && this.pattern.length > 0) {
             let newPattern = [];
@@ -163,6 +171,12 @@ function triggerPatternFromSettings(settings) {
     
     const pattern = createTriggerPattern(triggerType, triggerSettings);
     
+    // Apply pattern length first (truncates the base pattern) - only if > 0
+    if (triggerSettings.patternLength && triggerSettings.patternLength > 0) {
+        pattern.applyPatternLength(triggerSettings.patternLength);
+    }
+    
+    // Then apply resync interval (repeats the truncated pattern)
     if (resyncInterval) {
         pattern.applyResyncInterval(resyncInterval);
     }

@@ -55,7 +55,7 @@ class UIEuclideanPattern extends UIBase {
 
         const triggerSettings = settings.triggerSettings;
         const pattern = new EuclideanTriggerPattern(triggerSettings.length, triggerSettings.hits, triggerSettings.shift);
-        const triggerLength = settings.resyncInterval || settings.triggerSettings.length;
+        const triggerLength = triggerSettings.length;
         
         // Use cached visualization instead of generating pattern string
         const patternString = pattern.getVisualization(triggerLength);
