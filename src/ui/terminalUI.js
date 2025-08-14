@@ -175,6 +175,8 @@ class TerminalUI {
                 this.handleLeftRight(data.name);
             } else if (data.name === 'tab') {
                 this.handleTab();
+            } else if (data.name === 'space') {
+                this.handlePlayPause();
             }
             this.render();
         });
@@ -213,6 +215,14 @@ class TerminalUI {
     handleTab() {
         if (this.currentView.handleTab) {
             this.currentView.handleTab();
+        }
+    }
+
+    handlePlayPause() {
+        if (this.sequencer.isPlaying) {
+            this.sequencer.stop();
+        } else {
+            this.sequencer.start();
         }
     }
 
