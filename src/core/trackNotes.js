@@ -61,12 +61,18 @@ class TrackNotes {
 
 
             const chord = this.chordMakerForProgression(noteSettings, bar, beat);
+            // Calculate velocity once per trigger (for when velocitySpanIndividual is false)  
+            const triggerAdjustedVelocity = this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, trackSettings.volume, velocityOffset);
+            
             chord.forEach((note) => {
                 if (Math.random() * 100 < noteSettings.probability && this.shouldPlayIndividualNote(currentNoteSeriesStep)) {
                     if (trackSettings.conformNotes) {
                         note = this.pitchForProgression(note, bar, beat);
                     }
-                    const adjustedVelocity = this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, trackSettings.volume, velocityOffset);
+                    // Use individual velocity calculation if enabled, otherwise use trigger velocity
+                    const adjustedVelocity = noteSettings.velocitySpanIndividual 
+                        ? this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, trackSettings.volume, velocityOffset)
+                        : triggerAdjustedVelocity;
                     this.scheduleNote(note, trackSettings.channel - 1, startPulse + swingOffset, (startPulse + notesDuration) - swingOffset, adjustedVelocity);
                 }
             });
@@ -101,6 +107,10 @@ class TrackNotes {
         let stepsIterator = nrSteps;
         let arpStartPulse = startPulse;
         let arpPatternIndex = 0;
+        
+        // Calculate velocity once per entire arpeggio trigger (for when velocitySpanIndividual is false)
+        const triggerAdjustedVelocity = this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, this.track.settings.volume, 0);
+        
         while(stepsIterator > 0) {
             const { timeOffset: swingOffset, velocityOffset } = this.calculateGrooveOffset(startPulse);
             const { bar, beat } = this.ticker.getPositionFromPulse(arpStartPulse + swingOffset);
@@ -120,17 +130,19 @@ class TrackNotes {
             }
             const chord = this.chordMakerForProgression(noteSettings, bar, beat);
             
-            const adjustedVelocity = this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, this.track.settings.volume, velocityOffset);
             if (this.checkNoteSeriesCounter(currentNoteSeriesStep) 
                 && Math.random() * 100 < noteSettings.probability) 
             {             
-                
                 if (arpMode === ARP_MODES.CHORD) {
                     chord.forEach((pitch) => {
                         if (this.shouldPlayIndividualNote(currentNoteSeriesStep)) {
                             if (this.track.settings.conformNotes) {
                                 pitch = this.pitchForProgression(pitch, bar, beat);
-                            }    
+                            }
+                            // Use individual velocity calculation if enabled, otherwise use trigger velocity
+                            const adjustedVelocity = noteSettings.velocitySpanIndividual 
+                                ? this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, this.track.settings.volume, velocityOffset)
+                                : triggerAdjustedVelocity;
                             this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + noteDuration) - (swingOffset + 1), adjustedVelocity);
                         }
                     });
@@ -140,7 +152,11 @@ class TrackNotes {
                         let pitch = chord[arpPattern[arpPatternIndex]];
                         if (this.track.settings.conformNotes) {
                             pitch = this.pitchForProgression(pitch, bar, beat);
-                        }    
+                        }
+                        // Use individual velocity calculation if enabled, otherwise use trigger velocity
+                        const adjustedVelocity = noteSettings.velocitySpanIndividual 
+                            ? this.calculateAdjustedVelocity(noteSettings.velocity, noteSettings.velocitySpan, this.track.settings.volume, velocityOffset)
+                            : triggerAdjustedVelocity;
                         this.scheduleNote(pitch, this.track.settings.channel - 1, arpStartPulse,  (arpStartPulse + noteDuration) - (swingOffset + 1), adjustedVelocity);
                     }
 

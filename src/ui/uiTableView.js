@@ -138,6 +138,11 @@ class UITableView extends UIBase {
     }
 
     handleTab() {
+        // Exit editing mode if currently editing
+        if (this.isEditingField) {
+            this.isEditingField = false;
+        }
+        
         // Cycle to next page
         this.currentPage = (this.currentPage + 1) % this.nrPages;
         
