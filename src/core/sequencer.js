@@ -654,6 +654,38 @@ class Sequencer {
     }
 
     /**
+     * Find the next available (non-stored) active state slot
+     * @returns {number|null} - The index of the next available slot, or null if all are used
+     */
+    findNextAvailableActiveState() {
+        const defaultState = Array(16).fill(true);
+        
+        for (let i = 0; i < this.settings.activeStates.length; i++) {
+            const activeState = this.settings.activeStates[i];
+            // Check if this slot has the default state (considered available)
+            if (this.arraysEqual(activeState, defaultState)) {
+                return i;
+            }
+        }
+        
+        return null; // All slots are used
+    }
+
+    /**
+     * Helper method to compare two arrays for equality
+     * @param {Array} a - First array
+     * @param {Array} b - Second array
+     * @returns {boolean} - True if arrays are equal
+     */
+    arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
+    /**
      * Switch to the specified activeState and apply its track settings
      * @param {number} activeStateIndex - The activeState index to switch to
      */

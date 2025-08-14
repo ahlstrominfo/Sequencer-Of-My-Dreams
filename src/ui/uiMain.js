@@ -340,19 +340,32 @@ class UIMain extends UIBase {
 
 
     handleStoreActiveState() {
-        // Store current track states to the currently selected active state
+        // Store current track states - either to selected slot or next available
         this.sequencer.logger.log(`C key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
         
-        // Check if we're on the active states row (second to last row, before spacing)
-        const activeStatesRowIndex = this.rows.length - 1; // Last row is active states
+        // Check if we're on the active states row and on a valid active state column
+        const activeStatesRowIndex = this.rows.length - 1; 
         const isActiveStatesRow = this.editRow === activeStatesRowIndex;
+        const activeStateIndex = this.editCol - 1; // Subtract 1 for "m" column
+        const isOnActiveStateSlot = isActiveStatesRow && activeStateIndex >= 0 && activeStateIndex < 16;
             
-        if (isActiveStatesRow) {
-            const activeStateIndex = this.editCol - 1; // Subtract 1 for "m" column
+        if (isOnActiveStateSlot) {
+            // Original behavior: store to selected slot
+            this.sequencer.storeCurrentTrackStates(activeStateIndex);
+            this.sequencer.logger.log(`C key: Stored current track states to active state ${activeStateIndex}`);
+            // Force UI refresh while preserving cursor position
+            const savedRow = this.editRow;
+            const savedCol = this.editCol;
+            this.openView();
+            this.editRow = savedRow;
+            this.editCol = savedCol;
+        } else {
+            // New behavior: store to next available slot
+            const nextAvailableSlot = this.sequencer.findNextAvailableActiveState();
             
-            if (activeStateIndex >= 0 && activeStateIndex < 16) {
-                this.sequencer.storeCurrentTrackStates(activeStateIndex);
-                this.sequencer.logger.log(`C key: Stored current track states to active state ${activeStateIndex}`);
+            if (nextAvailableSlot !== null) {
+                this.sequencer.storeCurrentTrackStates(nextAvailableSlot);
+                this.sequencer.logger.log(`C key: Stored current track states to next available slot ${nextAvailableSlot}`);
                 // Force UI refresh while preserving cursor position
                 const savedRow = this.editRow;
                 const savedCol = this.editCol;
@@ -360,10 +373,8 @@ class UIMain extends UIBase {
                 this.editRow = savedRow;
                 this.editCol = savedCol;
             } else {
-                this.sequencer.logger.log(`C key: Invalid activeStateIndex ${activeStateIndex}`);
+                this.sequencer.logger.log(`C key: No available active state slots found`);
             }
-        } else {
-            this.sequencer.logger.log(`C key: Not on active states row (row ${this.editRow})`);
         }
     }
 
