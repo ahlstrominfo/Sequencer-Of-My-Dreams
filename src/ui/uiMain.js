@@ -325,8 +325,14 @@ class UIMain extends UIBase {
                     // "m" - make it bright white
                     return colors.brightWhite(value);
                 } else {
-                    // Active state symbols - make them ALL bright white for now
-                    return colors.brightWhite(value);
+                    // Active state symbols
+                    if (isSelected) {
+                        // Current cursor position - make it bright white
+                        return colors.brightWhite(value);
+                    } else {
+                        // Other active state symbols - make them gray
+                        return colors.dimGray(value);
+                    }
                 }
             },
         });
@@ -411,8 +417,8 @@ class UIMain extends UIBase {
                 }
                 
                 // Ensure we're on a selectable column
-                while (currentRow.cols[this.editCol].selectable === false && this.editCol > 0) {
-                    this.editCol--;
+                while (currentRow.cols[this.editCol].selectable === false && this.editCol < maxCol) {
+                    this.editCol++;
                 }
             }
         }

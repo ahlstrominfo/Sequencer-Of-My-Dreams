@@ -44,7 +44,7 @@ class UIBase {
         
         if(row.colRender) {
             return row.colRender({
-                prefix, value, formattedValue, isSelected, isEditing, row}
+                prefix, value, formattedValue, isSelected, isEditing, row, colIndex: _index}
             );
         }
         
