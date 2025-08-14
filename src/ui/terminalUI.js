@@ -157,9 +157,9 @@ class TerminalUI {
                 this.handleLeftRight('left');
             } else if (key === 'd') {
                 this.handleLeftRight('right');
-            } else if (key === 'c' && this.currentView === this.views.main) {
+            } else if ((key === 'c' || key === 'C') && this.currentView === this.views.main) {
                 this.handleStoreActiveState();
-            } else if (key === 'x' && this.currentView === this.views.main) {
+            } else if ((key === 'x' || key === 'X') && this.currentView === this.views.main) {
                 this.handleClearActiveState();
             } else if (data.shift && this.currentView === this.views.track) {
                 if (data.name === 'left') {

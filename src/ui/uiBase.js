@@ -137,11 +137,20 @@ class UIBase {
         } else if (this.isEditingField) {
             this.isEditingField = false;    
         } else {
-            this.isEditingField = true;
+            // Only enter edit mode if the field supports editing (has handle function)
+            const currentItem = this.rows[this.editRow].cols ? this.rows[this.editRow].cols[this.editCol] : this.rows[this.editRow];
+            if (currentItem && currentItem.handle) {
+                this.isEditingField = true;
+            }
+            // If no handle function, do nothing (don't enter edit mode)
         }
     }
 
     handleEscape() {
+        // Exit edit mode
+        if (this.isEditingField) {
+            this.isEditingField = false;
+        }
     }
 
     handleLeave() {
