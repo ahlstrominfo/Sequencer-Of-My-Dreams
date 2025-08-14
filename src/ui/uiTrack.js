@@ -270,6 +270,49 @@ class UITrack extends UIBase {
 
     }
 
+    handleTab() {
+        if (!this.isEditingField) {
+            // Look for the next non-selectable row starting from current position
+            let foundSeparator = false;
+            let separatorRow = -1;
+            
+            for (let i = 1; i < this.rows.length; i++) {
+                const checkRow = this.editRow + i;
+                if (checkRow >= this.rows.length) {
+                    // We've reached the end without finding a separator
+                    break;
+                }
+                if (this.rows[checkRow].selectable === false) {
+                    foundSeparator = true;
+                    separatorRow = checkRow;
+                    break;
+                }
+            }
+            
+            if (foundSeparator) {
+                // Find the next selectable row after the separator
+                for (let i = 1; i < this.rows.length; i++) {
+                    const candidateRow = separatorRow + i;
+                    if (candidateRow >= this.rows.length) break;
+                    if (this.rows[candidateRow].selectable !== false) {
+                        this.editRow = candidateRow;
+                        this.editCol = 0;
+                        break;
+                    }
+                }
+            } else {
+                // No separator found ahead, we're in the last section - go to first selectable row
+                for (let i = 0; i < this.rows.length; i++) {
+                    if (this.rows[i].selectable !== false) {
+                        this.editRow = i;
+                        this.editCol = 0;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     handleEscape() {
         if (this.isEditingField) {
             this.isEditingField = false;
