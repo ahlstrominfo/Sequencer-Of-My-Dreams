@@ -310,11 +310,37 @@ class UIMain extends UIBase {
         }));
 
         this.rows.push({
-            cols: activeStateRows,
+            cols: [
+                {
+                    value: () => 'm',
+                    selectable: false
+                },
+                ...activeStateRows
+            ],
             layout: 1,
             colsLayout: 0,
             rowRender: this.rowRender,
-            colRender: this.colRender,            
+            colRender: ({value, isSelected, colIndex}) => {
+                if (colIndex === 0) {
+                    // "m" uses default colRender behavior (adds spaces)
+                    return this.colRender({value: colors.dimGray(value), isSelected});
+                } else {
+                    // Active state symbols - no padding, just the colored symbol
+                    const activeStateIndex = colIndex - 1;
+                    const isCurrent = activeStateIndex === this.sequencer.settings.currentActiveState;
+                    
+                    let coloredValue;
+                    if (isSelected) {
+                        coloredValue = colors.brightWhite(value);
+                    } else if (isCurrent) {
+                        coloredValue = colors.brightWhite(value);
+                    } else {
+                        coloredValue = colors.dimGray(value);
+                    }
+                    
+                    return coloredValue;
+                }
+            },
         });
     }
 
@@ -328,7 +354,7 @@ class UIMain extends UIBase {
         const isActiveStatesRow = this.editRow === activeStatesRowIndex;
             
         if (isActiveStatesRow) {
-            const activeStateIndex = this.editCol; // Direct column mapping
+            const activeStateIndex = this.editCol - 1; // Subtract 1 for "m" column
             
             if (activeStateIndex >= 0 && activeStateIndex < 16) {
                 this.sequencer.storeCurrentTrackStates(activeStateIndex);
@@ -356,7 +382,7 @@ class UIMain extends UIBase {
         const isActiveStatesRow = this.editRow === activeStatesRowIndex;
             
         if (isActiveStatesRow) {
-            const activeStateIndex = this.editCol; // Direct column mapping
+            const activeStateIndex = this.editCol - 1; // Subtract 1 for "m" column
             
             if (activeStateIndex >= 0 && activeStateIndex < 16) {
                 // Reset to default state (all tracks active)
@@ -373,6 +399,34 @@ class UIMain extends UIBase {
             }
         } else {
             this.sequencer.logger.log(`X key: Not on active states row (row ${this.editRow})`);
+        }
+    }
+
+    handleNavigation(direction, step = 1) {
+        // Call parent navigation
+        super.handleNavigation(direction, step);
+        
+        // After navigation, adjust column position if needed
+        if (!this.isEditingField) {
+            const currentRow = this.rows[this.editRow];
+            if (currentRow && currentRow.cols) {
+                const maxCol = currentRow.cols.length - 1;
+                
+                // If current column is beyond available columns, adjust to a good default
+                if (this.editCol > maxCol) {
+                    // Find the active column (index 1 for track rows) or fall back to first available
+                    if (maxCol >= 1 && currentRow.cols[1].selectable !== false) {
+                        this.editCol = 1; // Active column
+                    } else {
+                        this.editCol = 0; // First column
+                    }
+                }
+                
+                // Ensure we're on a selectable column
+                while (currentRow.cols[this.editCol].selectable === false && this.editCol > 0) {
+                    this.editCol--;
+                }
+            }
         }
     }
 
