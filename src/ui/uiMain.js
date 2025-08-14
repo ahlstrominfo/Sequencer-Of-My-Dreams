@@ -291,8 +291,9 @@ class UIMain extends UIBase {
         // Store current track states to the currently selected active state
         this.sequencer.logger.log(`C key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
         
-        // Check if we're on the active states row (last row)
-        const isActiveStatesRow = this.editRow === this.rows.length - 1;
+        // Check if we're on the active states row (second to last row, before spacing)
+        const activeStatesRowIndex = this.rows.length - 1; // Last row is active states
+        const isActiveStatesRow = this.editRow === activeStatesRowIndex;
             
         if (isActiveStatesRow) {
             const activeStateIndex = this.editCol; // Direct column mapping
@@ -319,7 +320,8 @@ class UIMain extends UIBase {
         this.sequencer.logger.log(`X key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
         
         // Check if we're on the active states row (last row)
-        const isActiveStatesRow = this.editRow === this.rows.length - 1;
+        const activeStatesRowIndex = this.rows.length - 1; // Last row is active states
+        const isActiveStatesRow = this.editRow === activeStatesRowIndex;
             
         if (isActiveStatesRow) {
             const activeStateIndex = this.editCol; // Direct column mapping
