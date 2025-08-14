@@ -207,12 +207,13 @@ class UIMain extends UIBase {
                     }
                 },
                 {
-                    value: () => this.sequencer.settings.bpm,
+                    value: () => `B:${this.sequencer.settings.bpm}`,
                     handle: (delta) => {
                         const newBPM = this.sequencer.settings.bpm + delta;
                         this.sequencer.updateSettings({ bpm: Math.max(40, Math.min(300, newBPM)) });
                     }
                 },
+                this.createProgressionChangeColumn(),
                 {
                     value: () => 'S',
                     enter: () => {
@@ -443,13 +444,13 @@ class UIMain extends UIBase {
             value: () => {
                 this.progressionChangeBlinkingState = !this.progressionChangeBlinkingState;
                 if (this.progressionChangeBlinking && this.progressionChangeBlinkingState) {
-                    return ' ';
+                    return 'C: ';
                 }
                 if (this.progressionChangeNumber === null) {
                     this.progressionChangeNumber = this.sequencer.settings.currentProgressionIndex;
-                    return this.sequencer.settings.currentProgressionIndex;
+                    return `C:${this.sequencer.settings.currentProgressionIndex}`;
                 }
-                return this.progressionChangeNumber;
+                return `C:${this.progressionChangeNumber}`;
             },
             handle: (delta) => {
                 this.progressionChangeNumber = this.progressionChangeNumber + delta;
