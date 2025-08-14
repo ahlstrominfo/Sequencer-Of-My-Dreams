@@ -76,6 +76,25 @@ class UITrack extends UIBase {
                 }
             });
         }
+
+        // Add pattern steps control
+        this.rows.push({
+            name: 'Pattern Steps',
+            value: () => {
+                const triggerLength = settings.resyncInterval || settings.triggerSettings.length || 16;
+                return `${triggerLength}`;
+            },
+            handle: (delta) => {
+                const currentLength = settings.resyncInterval || settings.triggerSettings.length || 16;
+                const newLength = Math.max(1, Math.min(64, currentLength + delta));
+                
+                // Update triggerSettings.length to maintain the base pattern length
+                const newTriggerSettings = { ...settings.triggerSettings, length: newLength };
+                track.updateSettings({
+                    triggerSettings: newTriggerSettings
+                });
+            }
+        });
       
         this.rows.push({
             name: '  ----------------',
