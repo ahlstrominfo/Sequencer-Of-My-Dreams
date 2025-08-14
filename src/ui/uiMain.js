@@ -279,7 +279,7 @@ class UIMain extends UIBase {
         // Spacing row before active states
         this.rows.push({
             cols: [
-                { value: () => '', selectable: false }
+                { value: () => '----', selectable: false }
             ],
             layout: 1,
             colsLayout: 0,
@@ -312,7 +312,7 @@ class UIMain extends UIBase {
         this.rows.push({
             cols: [
                 {
-                    value: () => 'm',
+                    value: () => ' m  ',
                     selectable: false
                 },
                 ...activeStateRows
@@ -322,23 +322,11 @@ class UIMain extends UIBase {
             rowRender: this.rowRender,
             colRender: ({value, isSelected, colIndex}) => {
                 if (colIndex === 0) {
-                    // "m" uses default colRender behavior (adds spaces)
-                    return this.colRender({value: colors.dimGray(value), isSelected});
+                    // "m" - make it bright white
+                    return colors.brightWhite(value);
                 } else {
-                    // Active state symbols - no padding, just the colored symbol
-                    const activeStateIndex = colIndex - 1;
-                    const isCurrent = activeStateIndex === this.sequencer.settings.currentActiveState;
-                    
-                    let coloredValue;
-                    if (isSelected) {
-                        coloredValue = colors.brightWhite(value);
-                    } else if (isCurrent) {
-                        coloredValue = colors.brightWhite(value);
-                    } else {
-                        coloredValue = colors.dimGray(value);
-                    }
-                    
-                    return coloredValue;
+                    // Active state symbols - make them ALL bright white for now
+                    return colors.brightWhite(value);
                 }
             },
         });
