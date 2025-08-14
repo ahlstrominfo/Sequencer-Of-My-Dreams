@@ -69,7 +69,7 @@ class UIMain extends UIBase {
         return characterMap[clampedNumber];
       }
 
-    getTrackPatternVisualization(track, maxDisplayLength = 16) {
+    getTrackPatternVisualization(track, maxDisplayLength = null) {
         if (!track.trackPlan || !track.trackPlan.triggerPattern) {
             return '';
         }
@@ -108,6 +108,11 @@ class UIMain extends UIBase {
         
         const visualization = track.trackPlan.triggerPattern.getVisualization(vizLength);
         
+        // If no maxDisplayLength specified, use a reasonable maximum based on terminal width
+        if (maxDisplayLength === null) {
+            maxDisplayLength = Math.min(vizLength, 80); // Show full pattern up to 80 characters
+        }
+        
         // Truncate if it exceeds the display length
         if (visualization.length > maxDisplayLength) {
             return visualization.substring(0, maxDisplayLength);
@@ -133,7 +138,7 @@ class UIMain extends UIBase {
         
         // Adjust cursor positioning for vertical layout
         if (this.terminalUI.currentTrack !== null) {
-            this.editRow = this.terminalUI.currentTrack + 1; // +1 for header row
+            this.editRow = this.terminalUI.currentTrack + 2; // +2 for header row and separator row
             this.editCol = 0; // Start at track label column
         } else {
             this.editRow = 0; // Header row
@@ -147,10 +152,13 @@ class UIMain extends UIBase {
         this.rows.push({
             cols: [
                 {
-                    value: () => 'S',
+                    value: () => this.sequencer.isPlaying ? '▶' : '■',
                     enter: () => {
-                        this.terminalUI.currentTrack = null;
-                        this.terminalUI.setView('sequencerSettings');
+                        if (this.sequencer.isPlaying) {
+                            this.sequencer.stop();
+                        } else {
+                            this.sequencer.start();
+                        }
                     }
                 },
                 {
@@ -163,21 +171,36 @@ class UIMain extends UIBase {
                     }
                 },
                 {
-                    value: () => this.sequencer.isPlaying ? '▶' : '■',
-                    enter: () => {
-                        if (this.sequencer.isPlaying) {
-                            this.sequencer.stop();
-                        } else {
-                            this.sequencer.start();
-                        }
+                    value: () => this.sequencer.settings.bpm,
+                    handle: (delta) => {
+                        const newBPM = this.sequencer.settings.bpm + delta;
+                        this.sequencer.updateSettings({ bpm: Math.max(40, Math.min(300, newBPM)) });
                     }
                 },
-                this.createProgressionChangeColumn()
+                {
+                    value: () => 'S',
+                    enter: () => {
+                        this.terminalUI.currentTrack = null;
+                        this.terminalUI.setView('sequencerSettings');
+                    }
+                }
             ],
             layout: 1,
             colsLayout: 0,
             rowRender: this.rowRender,
             colRender: this.colRender
+        });
+
+        // Separator row with dashes
+        this.rows.push({
+            cols: [
+                { value: () => '----', selectable: false }
+            ],
+            layout: 1,
+            colsLayout: 0,
+            rowRender: this.rowRender,
+            colRender: this.colRender,
+            selectable: false
         });
 
         // Create a row for each track
@@ -210,7 +233,7 @@ class UIMain extends UIBase {
                         }
                     },
                     {
-                        value: () => this.getTrackPatternVisualization(track, 16),
+                        value: () => this.getTrackPatternVisualization(track),
                         selectable: false
                     }
                 ],
@@ -219,6 +242,18 @@ class UIMain extends UIBase {
                 rowRender: this.rowRender,
                 colRender: this.colRender
             });
+        });
+
+        // Spacing row before active states
+        this.rows.push({
+            cols: [
+                { value: () => '', selectable: false }
+            ],
+            layout: 1,
+            colsLayout: 0,
+            rowRender: this.rowRender,
+            colRender: this.colRender,
+            selectable: false
         });
 
         // Active states row
