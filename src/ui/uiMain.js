@@ -1,5 +1,6 @@
 const BPMCalculator = require("../utils/bpmCalculator");
 const UIBase = require("./uiBase");
+const { TRIGGER_TYPES } = require("../patterns/triggerPatterns");
 
 class UIMain extends UIBase {
     constructor(terminalUI, sequencer) {
@@ -68,6 +69,53 @@ class UIMain extends UIBase {
         return characterMap[clampedNumber];
       }
 
+    getTrackPatternVisualization(track, maxDisplayLength = 16) {
+        if (!track.trackPlan || !track.trackPlan.triggerPattern) {
+            return '';
+        }
+        
+        const settings = track.settings;
+        
+        // INIT tracks should not show any pattern steps
+        if (settings.triggerType === TRIGGER_TYPES.INIT) {
+            return '';
+        }
+        
+        // Determine the visualization length based on track settings (same logic as track view)
+        const triggerSettings = settings.triggerSettings;
+        let vizLength;
+        
+        if (triggerSettings.patternLength && triggerSettings.patternLength > 0) {
+            // Use the specific pattern length setting
+            vizLength = triggerSettings.patternLength;
+        } else {
+            // Use "all" - full pattern length based on pattern type
+            switch (settings.triggerType) {
+                case TRIGGER_TYPES.EUCLIDEAN:
+                    vizLength = triggerSettings.length;
+                    break;
+                case TRIGGER_TYPES.BINARY:
+                    vizLength = triggerSettings.numbers.length * 4;
+                    break;
+                case TRIGGER_TYPES.STEP:
+                    vizLength = 16;
+                    break;
+                default:
+                    vizLength = 16;
+                    break;
+            }
+        }
+        
+        const visualization = track.trackPlan.triggerPattern.getVisualization(vizLength);
+        
+        // Truncate if it exceeds the display length
+        if (visualization.length > maxDisplayLength) {
+            return visualization.substring(0, maxDisplayLength);
+        }
+        
+        return visualization;
+    }
+
     rowRender({formattedValue}) {
         return `${formattedValue !== undefined ? formattedValue : ''}`;
     }
@@ -80,153 +128,119 @@ class UIMain extends UIBase {
     }
 
     openView() {
-        this.editCol = 0;
-        if (this.terminalUI.currentTrack !== null) {
-             this.editCol = this.terminalUI.currentTrack + 1; // Adjusted for Sequencer column
-        }
-
         this.rows = [];
+        this.createVerticalLayout();
+        
+        // Adjust cursor positioning for vertical layout
+        if (this.terminalUI.currentTrack !== null) {
+            this.editRow = this.terminalUI.currentTrack + 1; // +1 for header row
+            this.editCol = 0; // Start at track label column
+        } else {
+            this.editRow = 0; // Header row
+            this.editCol = 0;
+        }
+    }
 
-        // Create Sequencer column
-        const sequencerColumn = {
-            value: () => {
-                return 'S';
-            },
-            enter: () => {
-                this.terminalUI.currentTrack = null;
-                this.terminalUI.setView('sequencerSettings');
-            }
-        };
 
-        // Labels row
-        const labelCols = [sequencerColumn, ...this.sequencer.tracks.map((track, index) => {
-            return {
-                value: () => {
-                    return this.trackLabels[index];
-                },
-                enter: () => {
-                    this.terminalUI.currentTrack = index;
-                    this.terminalUI.setView('track');
-                }
-            };
-        })];
-
-        this.rows.push({
-            cols: labelCols,
-            layout: 1,
-            colsLayout: 0,
-            rowRender: this.rowRender,
-            colRender: this.colRender
-        });
-
-        // Active notes row
+    createVerticalLayout() {
+        // Header row with global controls
         this.rows.push({
             cols: [
-                { value: () => ' ' }, // Placeholder for Sequencer column
-                ...this.sequencer.tracks.map((track) => ({
-                    value: () => {
-                        return this.trackPlaying[track.trackId] ? '■' : '□';
-                    },
+                {
+                    value: () => 'S',
                     enter: () => {
-                        track.updateSettings({ isActive: !track.settings.isActive });
+                        this.terminalUI.currentTrack = null;
+                        this.terminalUI.setView('sequencerSettings');
                     }
-                }))
+                },
+                {
+                    value: () => this.bigHeart ? '♥' : '❤',
+                    enter: () => {
+                        this.bpmCalculator.addTimestamp();
+                        if (this.bpmCalculator.getCurrentBPM()) {
+                            this.sequencer.updateSettings({ bpm: this.bpmCalculator.getCurrentBPM() });
+                        }
+                    }
+                },
+                {
+                    value: () => this.sequencer.isPlaying ? '▶' : '■',
+                    enter: () => {
+                        if (this.sequencer.isPlaying) {
+                            this.sequencer.stop();
+                        } else {
+                            this.sequencer.start();
+                        }
+                    }
+                },
+                this.createProgressionChangeColumn()
             ],
             layout: 1,
             colsLayout: 0,
             rowRender: this.rowRender,
-            colRender: this.colRender,
-            selectable: false
-        });   
-
-        // Active tracks row
-        const activeCols = [
-            {
-                value: () => {
-                    return this.bigHeart ? '♥' : '❤';
-                },
-                enter: () => {
-                    this.bpmCalculator.addTimestamp();
-                    if (this.bpmCalculator.getCurrentBPM()) {
-                        this.sequencer.updateSettings({ bpm: this.bpmCalculator.getCurrentBPM() });
-                    }
-                }
-            },
-            ...this.sequencer.tracks.map((track) => ({
-                value: () => {
-                    return track.settings.isActive ? '■' : '□';
-                },
-                enter: () => {
-                    track.updateSettings({ isActive: !track.settings.isActive });
-                }
-            }))
-        ];
-
-        this.rows.push({
-            cols: activeCols,
-            layout: 1,
-            colsLayout: 0,
-            rowRender: this.rowRender,
             colRender: this.colRender
-        });   
-        
-        // Volume row
-        const volumeCols = [
-            {
-                value: () => {
-                    return this.sequencer.isPlaying ? '▶' : '■';
-                },
-                enter: () => {
-                    if (this.sequencer.isPlaying) {
-                        this.sequencer.stop();
-                    } else {
-                        this.sequencer.start();
+        });
+
+        // Create a row for each track
+        this.sequencer.tracks.forEach((track, index) => {
+            this.rows.push({
+                cols: [
+                    {
+                        value: () => this.trackLabels[index],
+                        enter: () => {
+                            this.terminalUI.currentTrack = index;
+                            this.terminalUI.setView('track');
+                        }
+                    },
+                    {
+                        value: () => this.trackPlaying[track.trackId] ? '■' : '□',
+                        selectable: false
+                    },
+                    {
+                        value: () => track.settings.isActive ? '■' : '□',
+                        enter: () => {
+                            track.updateSettings({ isActive: !track.settings.isActive });
+                        }
+                    },
+                    {
+                        value: () => this.getBoxDrawingCharacter(track.settings.volume),
+                        handle: (delta) => {                        
+                            let newVolume = Math.round(track.settings.volume / 10) * 10;
+                            newVolume = newVolume + (delta * 10);
+                            track.updateSettings({ volume: newVolume });
+                        }
+                    },
+                    {
+                        value: () => this.getTrackPatternVisualization(track, 16),
+                        selectable: false
                     }
+                ],
+                layout: 1,
+                colsLayout: 0,
+                rowRender: this.rowRender,
+                colRender: this.colRender
+            });
+        });
+
+        // Active states row
+        const activeStateRows = this.sequencer.settings.activeStates.map((track, index) => ({
+            value: () => {
+                const isCurrent = index === this.sequencer.settings.currentActiveState;
+                const isStored = this.isActiveStateStored(track);
+                
+                if (isCurrent && isStored) {
+                    return '■';  // Current and stored
+                } else if (isCurrent && !isStored) {
+                    return '▣';  // Current but not stored (outlined square)
+                } else if (!isCurrent && isStored) {
+                    return '▪';  // Stored but not current (small square)
+                } else {
+                    return '□';  // Not current and not stored (empty square)
                 }
             },
-            ...this.sequencer.tracks.map((track) => ({
-                value: () => {
-                    return this.getBoxDrawingCharacter(track.settings.volume);
-                },
-                handle: (delta) => {                        
-                    let newVolume = Math.round(track.settings.volume / 10) * 10;
-                    newVolume = newVolume + (delta * 10);
-                    track.updateSettings({ volume: newVolume });
-                }
-            }))
-        ];
-
-        this.rows.push({
-            cols: volumeCols,
-            layout: 1,
-            colsLayout: 0,
-            rowRender: this.rowRender,
-            colRender: this.colRender,
-        });
-        
-        // Active states row
-        const activeStateRows = [
-            this.createProgressionChangeColumn(),
-            ...this.sequencer.settings.activeStates.map((track, index) => ({
-                value: () => {
-                    const isCurrent = index === this.sequencer.settings.currentActiveState;
-                    const isStored = this.isActiveStateStored(track);
-                    
-                    if (isCurrent && isStored) {
-                        return '■';  // Current and stored
-                    } else if (isCurrent && !isStored) {
-                        return '▣';  // Current but not stored (outlined square)
-                    } else if (!isCurrent && isStored) {
-                        return '▪';  // Stored but not current (small square)
-                    } else {
-                        return '□';  // Not current and not stored (empty square)
-                    }
-                },
-                enter: () => {
-                    this.sequencer.updateActiveState(index);
-                },
-            }))
-        ];
+            enter: () => {
+                this.sequencer.updateActiveState(index);
+            },
+        }));
 
         this.rows.push({
             cols: activeStateRows,
@@ -241,8 +255,13 @@ class UIMain extends UIBase {
     handleStoreActiveState() {
         // Store current track states to the currently selected active state
         this.sequencer.logger.log(`C key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
-        if (this.editRow === 4) { // Active states row
-            const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
+        
+        // Check if we're on the active states row (last row)
+        const isActiveStatesRow = this.editRow === this.rows.length - 1;
+            
+        if (isActiveStatesRow) {
+            const activeStateIndex = this.editCol; // Direct column mapping
+            
             if (activeStateIndex >= 0 && activeStateIndex < 16) {
                 this.sequencer.storeCurrentTrackStates(activeStateIndex);
                 this.sequencer.logger.log(`C key: Stored current track states to active state ${activeStateIndex}`);
@@ -263,8 +282,13 @@ class UIMain extends UIBase {
     handleClearActiveState() {
         // Clear the selected active state to default (all tracks active)
         this.sequencer.logger.log(`X key pressed: editRow=${this.editRow}, editCol=${this.editCol}`);
-        if (this.editRow === 4) { // Active states row
-            const activeStateIndex = this.editCol - 1; // Subtract 1 for progression column
+        
+        // Check if we're on the active states row (last row)
+        const isActiveStatesRow = this.editRow === this.rows.length - 1;
+            
+        if (isActiveStatesRow) {
+            const activeStateIndex = this.editCol; // Direct column mapping
+            
             if (activeStateIndex >= 0 && activeStateIndex < 16) {
                 // Reset to default state (all tracks active)
                 this.sequencer.settings.activeStates[activeStateIndex] = Array(16).fill(true);
