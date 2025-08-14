@@ -329,7 +329,7 @@ class TrackNotes {
         const baseVelocity = velocity + Math.floor(Math.random() * (velocitySpan + 1));
         const velocityOffset = Math.round((baseVelocity * velocityOffsetPercentage) / 100);
         const adjustedVelocity = Math.max(1, Math.min(127, baseVelocity + velocityOffset));
-        return Math.round(adjustedVelocity * (volume / 100));
+        return Math.max(1, Math.min(127, Math.round(adjustedVelocity * (volume / 100))));
     }
 
     // Clean up method to prevent memory leaks

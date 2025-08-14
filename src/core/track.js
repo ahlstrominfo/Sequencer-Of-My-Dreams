@@ -99,7 +99,7 @@ class Track {
         }
 
         if ('volume' in newSettings) {
-            newSettings.volume = Math.max(0, Math.min(200, newSettings.volume));
+            newSettings.volume = Math.max(0, Math.min(127, newSettings.volume));
         }
 
         if ('swingAmount' in newSettings) {
