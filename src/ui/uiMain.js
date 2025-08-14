@@ -222,9 +222,6 @@ class UIMain extends UIBase {
                         return '□';  // Not current and not stored (empty square)
                     }
                 },
-                enter: () => {
-                    this.sequencer.updateActiveState(index);
-                },
             }))
         ];
 
