@@ -1,6 +1,7 @@
 const MidiCommunicator = require('./midiCommunicator');
 const SequenceManager = require('./sequenceManager');
 const SequenceScheduler = require('./sequenceScheduler');
+const TrackRandomizer = require('./trackRandomizer');
 const { Track } = require('./track');
 const { SCALE_NAMES, KEYS } = require('../utils/scales');
 const Logger = require('../utils/logger');
@@ -25,6 +26,7 @@ class Sequencer {
         this.midi = new MidiCommunicator(this);
         this.sequenceManager = new SequenceManager(this);
         this.scheduler = new SequenceScheduler(this);
+        this.randomizer = new TrackRandomizer(this);
         this.logger = new Logger();
         this.ticker = new Ticker(bpm, this.settings.timeSignature, this);
 

@@ -85,6 +85,18 @@ class UISequencerSettings extends UIBase {
                     this.terminalUI.setView('loadSequence');
                 }
             },
+            { name: 'Load Template', 
+                value: 'Load',
+                enter: () => {
+                    this.terminalUI.setView('loadTemplate');
+                }
+            },
+            { name: 'Generate Random Track', 
+                value: 'Generate',
+                enter: () => {
+                    this.terminalUI.setView('randomizer');
+                }
+            },
             { name: 'New Sequence', 
                 value: 'New',
                 enter: () => {

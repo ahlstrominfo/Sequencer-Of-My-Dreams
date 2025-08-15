@@ -4,6 +4,8 @@ const UIEuclideanPattern = require('./uiEuclideanPattern');
 const UINoteSeries = require('./uiNoteSeries');
 const UIStepPattern = require('./uiStepPattern');
 const UILoadSequence = require('./uiLoadSequence');
+const UILoadTemplate = require('./uiLoadTemplate');
+const UIRandomizer = require('./uiRandomizer');
 const UIProgression = require('./uiProgression');
 const UITrack = require('./uiTrack');
 const UITrackEdit = require('./uiTrackEdit');
@@ -32,6 +34,8 @@ class TerminalUI {
             stepPattern: new UIStepPattern(this, sequencer),
             noteSeries: new UINoteSeries(this, sequencer),
             loadSequence: new UILoadSequence(this, sequencer),
+            loadTemplate: new UILoadTemplate(this, sequencer),
+            randomizer: new UIRandomizer(this, sequencer),
             progression: new UIProgression(this, sequencer),
             track: new UITrack(this, sequencer),
             trackEdit: new UITrackEdit(this, sequencer),
@@ -161,6 +165,13 @@ class TerminalUI {
                 this.handleStoreActiveState();
             } else if ((key === 'x' || key === 'X') && this.currentView === this.views.main) {
                 this.handleClearActiveState();
+            } else if (key === 'r' || key === 'n' || key === 'p') {
+                // Allow views to handle these keys specifically
+                if (this.currentView && this.currentView.handleKey && this.currentView.handleKey(key)) {
+                    // View handled the key, continue to render
+                } else {
+                    // Key not handled by view, ignore it
+                }
             } else if (data.shift && this.currentView === this.views.track) {
                 if (data.name === 'left') {
                     this.currentTrack = (this.currentTrack - 1 + 16) % 16;
@@ -177,6 +188,13 @@ class TerminalUI {
                 this.handleTab();
             } else if (data.name === 'space') {
                 this.handlePlayPause();
+            } else {
+                // Allow views to handle custom keys
+                if (this.currentView && this.currentView.handleKey && this.currentView.handleKey(key)) {
+                    // View handled the key, do nothing more
+                } else {
+                    // Key not handled by view, ignore it
+                }
             }
             this.render();
         });

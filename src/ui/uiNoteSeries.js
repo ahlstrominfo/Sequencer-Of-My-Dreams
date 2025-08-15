@@ -5,8 +5,17 @@ const { ARP_MODES_NAMES } = require("../utils/arps");
 class UINoteSeries extends UITableView {
     constructor(terminalUI, sequencer) {
         super(terminalUI, sequencer);
-        this.columnGroups = [5, 6, 5];
+        this.columnGroups = [5, 6, 7];
         this.nrPages = this.columnGroups.length;
+        this.selectedRandomizationType = 0;
+        this.randomizationTypes = sequencer.randomizer.getRandomizationTypes();
+        
+        // Map column indices to parameter names for 'r' key randomization
+        this.columnParameterMap = [
+            'rootNote', 'numberOfNotes', 'spread', 'inversion', 'velocity', // Page 1: 0-4
+            'velocitySpan', 'velocitySpanIndividual', 'pitchSpan', 'probability', 'aValueBValue', 'aValueIndividualNoteBValue', // Page 2: 5-10
+            'arpMode', 'playMultiplier', 'wonkyArp', 'useMaxDuration', 'maxDurationFactor', null, null // Page 3: 11-17 (null for Rnd and Del)
+        ];
     }
 
     openView() {
@@ -186,6 +195,32 @@ class UINoteSeries extends UITableView {
                     }
                 },                
                 {
+                    name: 'Rnd',
+                    value: () => this.randomizationTypes[this.selectedRandomizationType].name,
+                    handle: (delta, step) => {
+                        this.selectedRandomizationType = Math.max(0, Math.min(this.randomizationTypes.length - 1, this.selectedRandomizationType + delta * step));
+                        this.openView();
+                    },
+                    enter: () => {
+                        if (this.isEditingField) {
+                            // Apply the selected randomization type to this note series
+                            const randomizedSeries = this.sequencer.randomizer.applyRandomizationType(
+                                series,
+                                this.randomizationTypes[this.selectedRandomizationType].name,
+                                this.terminalUI.currentTrack
+                            );
+                            
+                            // Apply the randomized values to the current series
+                            Object.assign(series, randomizedSeries);
+                            
+                            this.updateTrackSettingsAndReload({
+                                noteSeries: track.settings.noteSeries
+                            });
+                        }
+                        this.isEditingField = !this.isEditingField;
+                    }
+                },
+                {
                     name: 'Del',
                     value: 'X',
                     enter: () => {
@@ -235,6 +270,30 @@ class UINoteSeries extends UITableView {
                 return ` Add new note series`;
             }
         });
+
+        this.rows.push({
+            name: 'Randomize all note series',
+            enter: () => {
+                // Randomize all note series in this track
+                track.settings.noteSeries.forEach((series) => {
+                    const randomizedSeries = this.sequencer.randomizer.randomizeNoteSeries(
+                        series, 
+                        this.terminalUI.currentTrack
+                    );
+                    Object.assign(series, randomizedSeries);
+                });
+                
+                this.updateTrackSettingsAndReload({
+                    noteSeries: track.settings.noteSeries
+                });
+            },
+            rowRender: ({isSelected}) => {
+                if (isSelected) {
+                    return `> Randomize all note series <`;
+                }
+                return ` Randomize all note series`;
+            }
+        });
     }
 
     render(renderComplete = true) {
@@ -247,13 +306,68 @@ class UINoteSeries extends UITableView {
         console.log('------------------');
         super.render();
         console.log('------------------');
-
+        console.log('Randomization: Select "Rnd" column and use ←→ to choose type, Enter to apply');
+        console.log('Press "r" on any parameter column to randomize just that parameter');
+        console.log('------------------');
     }
 
     updateTrackSettingsAndReload(trackSettings){
         const track = this.sequencer.tracks[this.terminalUI.currentTrack];
         track.updateSettings(trackSettings);
         this.openView();
+    }
+
+    handleKey(key) {
+        if (key === 'r') {
+            // Randomize individual column parameter - works without editing mode
+            const currentSeriesIndex = this.editRow;
+            const currentColumnIndex = this.getGlobalColumnIndex();
+            const parameterName = this.columnParameterMap[currentColumnIndex];
+            
+            if (parameterName && currentSeriesIndex < this.sequencer.tracks[this.terminalUI.currentTrack].settings.noteSeries.length) {
+                const track = this.sequencer.tracks[this.terminalUI.currentTrack];
+                const series = track.settings.noteSeries[currentSeriesIndex];
+                
+                // Randomize just this parameter
+                const newValue = this.sequencer.randomizer.randomizeParameter(
+                    series[parameterName],
+                    parameterName,
+                    this.terminalUI.currentTrack
+                );
+                
+                // Handle special cases for A:B pairs
+                if (newValue === 'RANDOMIZE_A_B_PAIR') {
+                    // Randomize both aValue and bValue together
+                    const newA = Math.floor(Math.random() * 4) + 1; // 1-4
+                    const newB = Math.floor(Math.random() * 4) + 1; // 1-4
+                    series.aValue = Math.min(newA, newB); // Ensure A <= B
+                    series.bValue = Math.max(newA, newB);
+                } else if (newValue === 'RANDOMIZE_A_B_INDIVIDUAL_PAIR') {
+                    // Randomize both aValueIndividualNote and bValueIndividualNote together
+                    const newA = Math.floor(Math.random() * 6) + 1; // 1-6
+                    const newB = Math.floor(Math.random() * 6) + 1; // 1-6
+                    series.aValueIndividualNote = Math.min(newA, newB); // Ensure A <= B
+                    series.bValueIndividualNote = Math.max(newA, newB);
+                } else {
+                    // Apply the new value normally
+                    series[parameterName] = newValue;
+                }
+                
+                this.updateTrackSettingsAndReload({
+                    noteSeries: track.settings.noteSeries
+                });
+            }
+            return true; // Indicate we handled the key
+        }
+        
+        // Let parent handle other keys
+        return super.handleKey ? super.handleKey(key) : false;
+    }
+
+    getGlobalColumnIndex() {
+        // Calculate the global column index based on current page and column position
+        // Use editCol which is the actual column index used by UITableView
+        return this.editCol || 0;
     }
 
     handleEscape() {

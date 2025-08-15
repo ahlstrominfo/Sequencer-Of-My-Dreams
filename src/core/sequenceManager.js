@@ -6,6 +6,7 @@ class SequenceManager {
     constructor(sequencer) {
         this.sequencer = sequencer;
         this.songsDirectory = './songs';
+        this.templatesDirectory = './templates';
         this.currentFileName = null;
         this.tmpFileName = 'tmp.json';
         this.ensureSongsDirectoryExists();
@@ -67,6 +68,30 @@ class SequenceManager {
                 return fs.statSync(path.join(this.songsDirectory, b)).mtime.getTime() - 
                        fs.statSync(path.join(this.songsDirectory, a)).mtime.getTime();
             });
+    }
+
+    getAvailableTemplates() {
+        if (!fs.existsSync(this.templatesDirectory)) {
+            return [];
+        }
+        return fs.readdirSync(this.templatesDirectory)
+            .filter(file => file.endsWith('.json'))
+            .sort();
+    }
+
+    loadTemplate(fileName) {
+        const filePath = path.join(this.templatesDirectory, fileName);
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const templateData = JSON.parse(fileContent);
+
+        templateData.tracks.forEach((trackSettings, index) => {
+            this.sequencer.updateTrackSettings(index, trackSettings);
+        });
+        this.sequencer.updateSettings(templateData.settings, true);
+
+        // Clear current filename since this is a template, not a saved sequence
+        this.currentFileName = null;
+        this.saveToTmp();
     }
 
     getCurrentTrackName() {

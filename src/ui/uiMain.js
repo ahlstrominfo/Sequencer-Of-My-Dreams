@@ -472,6 +472,50 @@ class UIMain extends UIBase {
             }
         };
     }
+
+    handleKey(key) {
+        // Check if we're on a track row (not header rows or active states)
+        const trackRowStartIndex = 2; // After header row and separator
+        const trackRowEndIndex = trackRowStartIndex + 16; // 16 tracks
+        
+        if (this.editRow >= trackRowStartIndex && this.editRow < trackRowEndIndex) {
+            const trackIndex = this.editRow - trackRowStartIndex;
+            
+            if (key === 'n') {
+                // Go to Note Series for this track
+                this.terminalUI.currentTrack = trackIndex;
+                this.terminalUI.setView('noteSeries');
+                return true;
+            } else if (key === 'p') {
+                // Go to Pattern Edit for this track
+                this.terminalUI.currentTrack = trackIndex;
+                // Determine which pattern view to open based on trigger type
+                const track = this.sequencer.tracks[trackIndex];
+                const triggerType = track.settings.triggerType;
+                
+                switch (triggerType) {
+                    case TRIGGER_TYPES.INIT: // 0 - INIT has no pattern to edit, default to euclidean
+                        this.terminalUI.setView('euclideanPattern');
+                        break;
+                    case TRIGGER_TYPES.BINARY: // 1 - BINARY
+                        this.terminalUI.setView('binaryPattern');
+                        break;
+                    case TRIGGER_TYPES.EUCLIDEAN: // 2 - EUCLIDEAN
+                        this.terminalUI.setView('euclideanPattern');
+                        break;
+                    case TRIGGER_TYPES.STEP: // 3 - STEP
+                        this.terminalUI.setView('stepPattern');
+                        break;
+                    default:
+                        this.terminalUI.setView('euclideanPattern');
+                        break;
+                }
+                return true;
+            }
+        }
+        
+        return false; // Key not handled
+    }
 }
 
 module.exports = UIMain;
