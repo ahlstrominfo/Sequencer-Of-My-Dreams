@@ -165,7 +165,7 @@ class TerminalUI {
                 this.handleStoreActiveState();
             } else if ((key === 'x' || key === 'X') && this.currentView === this.views.main) {
                 this.handleClearActiveState();
-            } else if (key === 'r' || key === 'n' || key === 'p') {
+            } else if (key === 'r' || key === 'n' || key === 'p' || key === 't' || (key >= '0' && key <= '9')) {
                 // Allow views to handle these keys specifically
                 if (this.currentView && this.currentView.handleKey && this.currentView.handleKey(key)) {
                     // View handled the key, continue to render

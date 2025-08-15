@@ -12,6 +12,11 @@ class UIMain extends UIBase {
         this.trackPlayingTimeout = Array(16);
         this.registerEvents();
         this.bigHeart = false;
+        
+        // Track selection system: "t" + numbers + enter
+        this.trackSelectionMode = false;
+        this.trackNumberBuffer = '';
+        this.trackNumberTimeout = null;
     }
 
     registerEvents() {
@@ -215,7 +220,7 @@ class UIMain extends UIBase {
                 },
                 this.createProgressionChangeColumn(),
                 {
-                    value: () => 'S',
+                    value: () => this.trackSelectionMode ? `T:${this.trackNumberBuffer}` : 'S',
                     enter: () => {
                         this.terminalUI.currentTrack = null;
                         this.terminalUI.setView('sequencerSettings');
@@ -473,7 +478,55 @@ class UIMain extends UIBase {
         };
     }
 
+    clearTrackSelection() {
+        this.trackSelectionMode = false;
+        this.trackNumberBuffer = '';
+        if (this.trackNumberTimeout) {
+            clearTimeout(this.trackNumberTimeout);
+            this.trackNumberTimeout = null;
+        }
+    }
+
+    resetTrackSelectionTimeout() {
+        if (this.trackNumberTimeout) {
+            clearTimeout(this.trackNumberTimeout);
+        }
+        this.trackNumberTimeout = setTimeout(() => {
+            this.clearTrackSelection();
+        }, 2000); // 2 seconds timeout
+    }
+
+    handleTrackSelection(key) {
+        if (key === 't') {
+            // Start track selection mode
+            this.trackSelectionMode = true;
+            this.trackNumberBuffer = '';
+            this.resetTrackSelectionTimeout();
+            return true;
+        }
+        
+        if (this.trackSelectionMode) {
+            if (key >= '0' && key <= '9') {
+                // Add digit to buffer
+                this.trackNumberBuffer += key;
+                this.resetTrackSelectionTimeout();
+                return true;
+            } else if (key === '\u001b') {
+                // Escape pressed - cancel selection
+                this.clearTrackSelection();
+                return false; // Let normal escape handling continue
+            }
+        }
+        
+        return false;
+    }
+
     handleKey(key) {
+        // First check track selection system
+        if (this.handleTrackSelection(key)) {
+            return true;
+        }
+        
         // Check if we're on a track row (not header rows or active states)
         const trackRowStartIndex = 2; // After header row and separator
         const trackRowEndIndex = trackRowStartIndex + 16; // 16 tracks
@@ -515,6 +568,22 @@ class UIMain extends UIBase {
         }
         
         return false; // Key not handled
+    }
+
+    handleEnter() {
+        // Check if we're in track selection mode
+        if (this.trackSelectionMode) {
+            const trackNumber = parseInt(this.trackNumberBuffer);
+            if (!isNaN(trackNumber) && trackNumber >= 0 && trackNumber <= 15) {
+                this.terminalUI.currentTrack = trackNumber;
+                this.terminalUI.setView('track');
+            }
+            this.clearTrackSelection();
+            return; // Don't call parent handleEnter
+        }
+        
+        // Normal Enter handling
+        super.handleEnter();
     }
 }
 
