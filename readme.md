@@ -2,7 +2,7 @@
 
 Sequencer of My Dreams is a powerful and flexible MIDI sequencer with a Terminal User Interface (TUI). This guide will walk you through all the features accessible via the TUI.
 
-# Disclamier
+# Disclaimer
 It might work on your computer. 
 
 I used AI to do a lot of the heavy lifting coding.
@@ -27,6 +27,12 @@ I used AI to do a lot of the heavy lifting coding.
 To start the sequencer, run:
 
 ```
+npm start
+```
+
+Or alternatively:
+
+```
 node src/app.js
 ```
 
@@ -39,21 +45,67 @@ node src/app.js
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Main View](#main-view)
-3. [Sequencer Settings](#sequencer-settings)
-4. [Track Settings](#track-settings)
-5. [Note Series](#note-series)
-6. [Trigger Patterns](#trigger-patterns)
+3. [Keyboard Shortcuts](#keyboard-shortcuts)
+4. [Sequencer Settings](#sequencer-settings)
+5. [Track Settings](#track-settings)
+6. [Track Editing](#track-editing)
+7. [Note Series](#note-series)
+8. [Trigger Patterns](#trigger-patterns)
    - [Euclidean Pattern](#euclidean-pattern)
    - [Binary Pattern](#binary-pattern)
    - [Step Pattern](#step-pattern)
-7. [Groove Settings](#groove-settings)
-8. [Chord Progression](#chord-progression)
-9. [Song Mode](#song-mode)
-10. [Saving and Loading Sequences](#saving-and-loading-sequences)
+9. [Groove Settings](#groove-settings)
+10. [Chord Progression](#chord-progression)
+11. [Song Mode](#song-mode)
+12. [Templates](#templates)
+13. [Randomizer](#randomizer)
+14. [Saving and Loading Sequences](#saving-and-loading-sequences)
 
 ## Introduction
 
 Welcome to the Sequencer of My Dreams! This manual will guide you through the various features and settings available in the user interface. The sequencer is designed to be highly customizable, allowing you to create complex and evolving musical patterns.
+
+## Getting Started Tutorial
+
+Here's a quick tutorial to get you making music right away:
+
+### Step 1: Start the Sequencer
+```bash
+npm start
+```
+
+### Step 2: Basic Playback
+- Press **Space** to start/stop playback
+- You should hear a basic pattern playing through your DAW
+
+### Step 3: Try a Template
+- Press **S** to enter Sequencer Settings
+- Select **Load Template**
+- Choose **house** or **techno** for an immediate musical experience
+- Press **Escape** to return to the main view
+- Press **Space** to hear your template
+
+### Step 4: Edit a Track
+- Press **0** (zero) to edit Track 0
+- Try changing the **Speed Multiplier** (use arrow keys to adjust)
+- Press **Escape** to return to main view and hear the changes
+
+### Step 5: Change the Pattern
+- Press **0** again to edit Track 0
+- Select **Trigger Type** and change it to **euclidean**
+- Press **Enter** to access the Euclidean Pattern editor
+- Adjust **Hits** and **Length** to create different rhythms
+- Press **Escape** twice to return to main view
+
+### Step 6: Active States
+- In the main view, try pressing **1**, **2**, **3** etc. to switch between different track combinations
+- This lets you create verse/chorus arrangements
+
+### Step 7: BPM and Global Controls
+- Adjust **BPM** in the main view to change tempo
+- Try the **Randomizer** (Sequencer Settings → Randomizer) for instant inspiration
+
+That's it! You're now ready to explore the full feature set described below.
 
 ## Main View
 
@@ -67,6 +119,17 @@ The main view provides an overview of all tracks and global sequencer controls.
 - **Volume**: Adjust the volume for each track.
 - **Active States**: Switch between different active states for more complex arrangements.
 - **Progression Change**: Change the current progression in real-time.
+- **Track Selection**: Press number keys (0-9) or letter keys (a-f) to directly select and edit tracks.
+
+## Keyboard Shortcuts
+
+The sequencer includes several convenient keyboard shortcuts:
+
+- **Space Bar**: Toggle play/pause from anywhere in the interface
+- **0-9, a-f**: Direct track selection and editing from the main view
+- **Escape**: Return to previous menu/view
+- **Enter**: Select or modify the current setting
+- **Arrow Keys**: Navigate through menus and adjust values
 
 ## Sequencer Settings
 
@@ -78,6 +141,8 @@ Access these settings by selecting 'S' in the main view.
 - **Song Mode**: Toggle and manage song mode.
 - **Save Sequence**: Save the current sequence.
 - **Load Sequence**: Load a previously saved sequence.
+- **Load Template**: Load pre-built musical templates (house, techno, hip-hop, etc.)
+- **Randomizer**: Generate random track configurations using AI-powered style detection
 - **New Sequence**: Start a new, blank sequence.
 
 ## Track Settings
@@ -102,6 +167,7 @@ Access these settings by selecting a track label in the main view.
 - **Channel**: Set the MIDI channel for the track.
 - **Volume**: Adjust the track's volume.
 - **Active**: Toggle the track on/off.
+- **Track Edit**: Access advanced track editing options including copy, clear, and duplication functions.
 
 ## Note Series
 
@@ -166,6 +232,40 @@ Create longer form compositions by chaining different sections.
 - **Progression**: Choose which progression to use for each part.
 - **Bars**: Set the duration of each part in bars.
 - **Active State**: Choose which combination of active tracks to use for each part.
+
+## Track Editing
+
+Access the track editing menu from Track Settings for advanced track manipulation:
+
+- **Clear**: Reset the current track to default settings
+- **Copy Track**: Copy all settings from the current track to another track
+- **Duplicate**: Create an exact copy of the current track
+- **Track Operations**: Advanced track management and manipulation tools
+
+## Templates
+
+The sequencer includes pre-built musical templates to get you started quickly:
+
+- **House**: Classic house music patterns and progressions
+- **Melodic House**: More melodic and atmospheric house variations
+- **Techno**: Driving techno rhythms and bass patterns
+- **Hip-Hop**: Hip-hop drum patterns and musical elements
+- **Pop**: Pop music structures and chord progressions
+- **Glass**: Minimalist, glass-like repetitive patterns (inspired by Steve Reich/Philip Glass)
+- **Eno**: Ambient and generative music patterns (inspired by Brian Eno)
+
+Access templates through Sequencer Settings → Load Template.
+
+## Randomizer
+
+The AI-powered randomizer can generate new track configurations automatically:
+
+- **Random Style**: Generate a completely random track using any musical style
+- **Genre-Specific**: Choose from specific musical genres for more targeted randomization
+- **Smart Generation**: Uses pattern analysis to create musically coherent random tracks
+- **Instant Creativity**: Perfect for breaking creative blocks or exploring new musical ideas
+
+Access the randomizer through Sequencer Settings → Randomizer.
 
 ## Saving and Loading Sequences
 
